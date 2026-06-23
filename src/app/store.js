@@ -1,0 +1,239 @@
+// src/app/store.js
+// Fully on-device store. No accounts, no network. Everything lives in
+// localStorage. A tiny pub/sub backs React's useSyncExternalStore so the UI
+// updates live. Designed to degrade gracefully when storage is unavailable
+// (iOS private mode, blocked cookies, etc.) by falling back to memory only.
+import { GOALS } from "./selectors.js";
+
+const KEYS = {
+  profile: "tt_profile_v1",
+  settings: "tt_settings_v1",
+  events: "tt_events_v1",
+  cards: "tt_cards_v1",
+};
+
+export const SCHEMA_VERSION = 1;
+
+// ---------- safe storage ----------
+const memoryFallback = new Map();
+let storageOK = true;
+
+function rawGet(key) {
+  try {
+    if (storageOK && typeof localStorage !== "undefined") {
+      return localStorage.getItem(key);
+    }
+  } catch {
+    storageOK = false;
+  }
+  return memoryFallback.has(key) ? memoryFallback.get(key) : null;
+}
+function rawSet(key, value) {
+  memoryFallback.set(key, value);
+  try {
+    if (storageOK && typeof localStorage !== "undefined") {
+      localStorage.setItem(key, value);
+    }
+  } catch {
+    storageOK = false; // quota / private mode — keep working from memory
+  }
+}
+function rawRemove(key) {
+  memoryFallback.delete(key);
+  try {
+    if (typeof localStorage !== "undefined") localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isPersistent() {
+  return storageOK;
+}
+
+// ---------- defaults ----------
+export const DEFAULT_PROFILE = {
+  onboarded: false,
+  tourSeen: false, // first-launch how-to overlay (shown once on Home)
+  intent: "cutback", // 'cutback' | 'break' | 'quit' — drives the whole experience
+  goalStart: null, // ms timestamp the current goal began (anchors sober-day count)
+  breakDays: 30, // length of a "take a break" challenge (only used when intent==='break')
+  currency: "INR",
+  drinksPerWeekBaseline: 8,
+  spendPerNight: 1200,
+  typicalSession: 3, // drinks per night out
+  targetYinRatio: 0.8, // alcohol-free-nights target (cutback ~0.8; break/quit = 1)
+  rewardGoal: { label: "a weekend away", amount: 10000 },
+  intention: {
+    trigger: "friends order another round",
+    plan: "order a soda & lime and call it",
+  },
+  schemaVersion: SCHEMA_VERSION,
+};
+
+export const DEFAULT_SETTINGS = {
+  sound: false, // OFF by default (calm, respectful)
+  haptics: true,
+  reducedMotionOverride: false, // force-on reduced motion
+  reminderTime: "", // 'HH:MM' or '' (Capacitor-ready, no-op on web)
+  drinkLimitNudge: true,
+};
+
+// ---------- in-memory state mirror ----------
+function parse(json, fallback) {
+  if (!json) return fallback;
+  try {
+    const v = JSON.parse(json);
+    return v == null ? fallback : v;
+  } catch {
+    return fallback;
+  }
+}
+
+function hydrate() {
+  return {
+    profile: { ...DEFAULT_PROFILE, ...parse(rawGet(KEYS.profile), {}) },
+    settings: { ...DEFAULT_SETTINGS, ...parse(rawGet(KEYS.settings), {}) },
+    events: parse(rawGet(KEYS.events), []) || [],
+    cards: parse(rawGet(KEYS.cards), []) || [],
+  };
+}
+
+let state = hydrate();
+const listeners = new Set();
+
+function emit() {
+  // new top-level identity so useSyncExternalStore sees a change
+  state = { ...state };
+  listeners.forEach((l) => l());
+}
+
+export function subscribe(listener) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+export function getState() {
+  return state;
+}
+
+// ---------- ids ----------
+function uid() {
+  try {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  } catch {
+    /* ignore */
+  }
+  return `e_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e9).toString(36)}`;
+}
+
+// ---------- writers ----------
+export function updateProfile(patch) {
+  state.profile = { ...state.profile, ...patch, schemaVersion: SCHEMA_VERSION };
+  rawSet(KEYS.profile, JSON.stringify(state.profile));
+  emit();
+  return state.profile;
+}
+
+/**
+ * Set (or switch) the user's goal. Applies that goal's sensible defaults —
+ * abstinence goals (break/quit) aim at 100% and a "take a break" gets its day
+ * count — and stamps a fresh `goalStart` so the sober-day countdown restarts
+ * from the moment they commit. Research backs letting people change goals: many
+ * begin at moderation and migrate to abstinence (or restart a break) over time.
+ * `extra` lets callers override (e.g. a chosen break length or kept target).
+ */
+export function setGoal(intent, extra = {}) {
+  const g = GOALS[intent] || GOALS.cutback;
+  const patch = {
+    intent,
+    goalStart: Date.now(),
+    targetYinRatio: g.defaultTarget,
+    ...(g.breakDays ? { breakDays: g.breakDays } : {}),
+    ...extra,
+  };
+  return updateProfile(patch);
+}
+
+export function updateSettings(patch) {
+  state.settings = { ...state.settings, ...patch };
+  rawSet(KEYS.settings, JSON.stringify(state.settings));
+  emit();
+  return state.settings;
+}
+
+/**
+ * Append an immutable event to the log. The log is the single source of truth;
+ * all stats are derived (see selectors.js). Events are never mutated/deleted on
+ * a slip — that is what keeps lifetime totals monotonic.
+ *
+ * type: 'clear_night' | 'drink_night' | 'urge_surf' | 'soft_landing'
+ *     | 'mood_checkin' | 'milestone' | 'freeze_used' | 'streak_reset'
+ */
+export function addEvent(type, payload = {}, ts = Date.now()) {
+  const event = { id: uid(), ts, type, payload };
+  state.events = [...state.events, event];
+  rawSet(KEYS.events, JSON.stringify(state.events));
+  emit();
+  return event;
+}
+
+export function awardCard(card) {
+  // card: { key, name, rarity, flavor, ts }
+  if (state.cards.some((c) => c.key === card.key && card.unique)) return null;
+  const withTs = { ts: Date.now(), ...card };
+  state.cards = [...state.cards, withTs];
+  rawSet(KEYS.cards, JSON.stringify(state.cards));
+  emit();
+  return withTs;
+}
+
+// ---------- data ownership ----------
+export function exportData() {
+  return {
+    app: "tequila-tao",
+    schemaVersion: SCHEMA_VERSION,
+    exportedAt: new Date().toISOString(),
+    profile: state.profile,
+    settings: state.settings,
+    events: state.events,
+    cards: state.cards,
+  };
+}
+
+export function importData(obj) {
+  if (!obj || typeof obj !== "object") throw new Error("Invalid backup file.");
+  const events = Array.isArray(obj.events) ? obj.events : [];
+  // de-dupe by id
+  const seen = new Set();
+  const merged = [...state.events, ...events].filter((e) => {
+    if (!e || !e.id || seen.has(e.id)) return false;
+    seen.add(e.id);
+    return true;
+  });
+  state.events = merged.sort((a, b) => a.ts - b.ts);
+  if (obj.profile) state.profile = { ...DEFAULT_PROFILE, ...obj.profile };
+  if (obj.settings) state.settings = { ...DEFAULT_SETTINGS, ...obj.settings };
+  if (Array.isArray(obj.cards)) state.cards = obj.cards;
+  rawSet(KEYS.events, JSON.stringify(state.events));
+  rawSet(KEYS.profile, JSON.stringify(state.profile));
+  rawSet(KEYS.settings, JSON.stringify(state.settings));
+  rawSet(KEYS.cards, JSON.stringify(state.cards));
+  emit();
+}
+
+/** Soft reset: start the clear-night streak over but keep all lifetime history. */
+export function softResetStreak(note = "") {
+  return addEvent("streak_reset", { note });
+}
+
+/** Nuke everything (double-confirmed in the UI). */
+export function clearAll() {
+  Object.values(KEYS).forEach(rawRemove);
+  state = {
+    profile: { ...DEFAULT_PROFILE },
+    settings: { ...DEFAULT_SETTINGS },
+    events: [],
+    cards: [],
+  };
+  emit();
+}

@@ -1,0 +1,419 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Tequila Tao — design tokens (Tailwind v4 CSS-first @theme)
+   v3-style tailwind.config.js is NOT auto-loaded by v4, so all
+   brand tokens live here. Use as utilities, e.g. bg-ink, text-pearl,
+   text-jade, border-glass, etc.
+   ============================================================ */
+@theme {
+  /* ---- Base / chrome ---- */
+  --color-ink: #0b0e1a; /* deep night base */
+  --color-ink-2: #141a2e; /* gradient pair */
+  --color-surface: #1b2236; /* opaque card surface (a layer above ink-2) */
+
+  /* ---- Yin (clarity). One green only — see jade. ---- */
+  --color-pearl: #f4f1e8; /* warm paper-pearl */
+  --color-moonstone: #9ec7e8; /* cool DATA accent: drinks avoided, trend line */
+  --color-jade: #5ec98a; /* THE single success / positive / clear-night green */
+  --color-teal: #39b6c4; /* neutral progress / time (cyan) — never means "clear" */
+
+  /* ---- Yang (celebration): a warm ramp, none of them red ---- */
+  --color-wine: #7a0f2b; /* brand + destructive action (deep, not an alarm) */
+  --color-ember: #ef9a6b; /* celebration peach — disc gradient & warm edges */
+  --color-amber: #e0962f; /* celebration honey accent */
+  --color-amber-deep: #b96a28; /* heavy-night / yang gradient end */
+
+  /* ---- Accents / state ---- */
+  --color-focus: #7fb3ff; /* interaction affordance: focus ring + text links */
+  --color-gold: #d8b24a; /* milestone patina / achievement ONLY */
+  --color-slate: #586577; /* drank / paused — darker neutral (distinct from sage), never red */
+  --color-sage: #93b6c6; /* checked in / rest — lighter grey-blue, clearly not a green */
+  --color-danger: #ff6b5e; /* medical-safety ONLY — the one true alarm red */
+
+  /* ---- Text ---- */
+  --color-pearl-soft: rgba(238, 236, 229, 0.8);
+  --color-pearl-faint: rgba(238, 236, 229, 0.6);
+
+  /* ---- Type ---- */
+  --font-display: "Playfair Display", ui-serif, Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+
+  /* ---- Touch targets ---- */
+  --spacing-touch: 44px;
+  --spacing-touch-lg: 56px;
+
+  /* ---- Motion ---- */
+  --ease-tao: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /* ---- Breakpoints (keep small-phone xs) ---- */
+  --breakpoint-xs: 22.5rem; /* 360px */
+}
+
+/* ============================================================
+   Base reset + mobile / cross-browser hardening
+   ============================================================ */
+:root {
+  color-scheme: dark;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* ---- State-adaptive ambience (live-set by AdaptiveTheme.jsx) ----
+     These drive the immersive background so the whole app shifts with the time
+     of day and the active goal. Defaults below = an evening / cutback mood. */
+  --bg-base: #090c17;
+  --glow-1: rgba(94, 201, 138, 0.14); /* time-of-day glow (top-left)  */
+  --glow-2: rgba(127, 179, 255, 0.16); /* goal glow (top-right)        */
+  --glow-3: rgba(122, 15, 43, 0.28); /* warmth at the foot            */
+  --accent: #5ec98a; /* action accent (kept jade for brand) */
+
+  /* ---- Elevation surfaces (solid, clearly stepped above the base) ---- */
+  --surface-1: #161d33; /* cards (subtle lift) */
+  --raise-top: #313c64; /* raised button top  */
+  --raise-bot: #232c4c; /* raised button foot */
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--color-pearl);
+  font-family: var(--font-sans);
+  overscroll-behavior-y: none; /* no pull-to-refresh bounce */
+  overflow-x: hidden;
+}
+
+/* The immersive backdrop lives on one fixed layer so EVERY screen sits on a
+   living, colourful field (this is what makes the frosted glass read as glass
+   instead of black-on-black). The radial glows are state-adaptive CSS vars and
+   the whole field drifts slowly for a calm, alive feel. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -25%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 32% at 18% 14%, var(--glow-1), transparent 62%),
+    radial-gradient(42% 38% at 86% 16%, var(--glow-2), transparent 62%),
+    radial-gradient(70% 55% at 50% 116%, var(--glow-3), transparent 60%),
+    radial-gradient(120% 90% at 50% -10%, rgba(40, 52, 96, 0.35), transparent 60%);
+  background-color: var(--bg-base);
+  animation: bg-drift 42s ease-in-out infinite alternate;
+  transition: background 1.2s ease;
+}
+@keyframes bg-drift {
+  from {
+    transform: translate3d(-1.5%, -1%, 0) scale(1.06);
+  }
+  to {
+    transform: translate3d(1.5%, 1.5%, 0) scale(1.12);
+  }
+}
+
+/* Use svh/dvh helpers — dodges the iOS Safari URL-bar resize bug */
+.h-screen-safe {
+  height: 100svh;
+  height: 100dvh;
+}
+.min-h-screen-safe {
+  min-height: 100svh;
+  min-height: 100dvh;
+}
+
+/* Safe-area helpers */
+.pt-safe {
+  padding-top: max(var(--safe-top), 0.5rem);
+}
+.pb-safe {
+  padding-bottom: max(var(--safe-bottom), 0.5rem);
+}
+.px-safe {
+  padding-left: max(var(--safe-left), 1rem);
+  padding-right: max(var(--safe-right), 1rem);
+}
+.inset-safe-bottom {
+  bottom: var(--safe-bottom);
+}
+
+/* Numbers never jitter while animating */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* ============================================================
+   Typographic refinements — finer text rendering
+   ============================================================ */
+/* Playfair display titles read cleaner a touch tight at large sizes. */
+.font-display {
+  letter-spacing: -0.012em;
+}
+/* Even line breaks in headings — no single orphaned word on the last line. */
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: balance;
+}
+/* Body copy: avoid lonely one-word last lines (widows) where supported. */
+p,
+li {
+  text-wrap: pretty;
+}
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+video {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Inputs: 16px floor avoids iOS zoom-on-focus */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: max(16px, 1rem);
+  -webkit-appearance: none;
+  appearance: none;
+}
+button {
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  background: none;
+  border: none;
+  color: inherit;
+}
+
+/* Visible keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: 0.4rem;
+}
+
+/* ============================================================
+   Range sliders. The global `appearance:none` reset above strips
+   the native thumb + track, and `accent-color` paints nothing once
+   appearance is gone — that was the "black on black" slider bug.
+   So we draw the track and thumb explicitly, high-contrast on the
+   dark glass cards. The filled portion comes from --range-pct (set
+   inline by the Slider component) on WebKit; Firefox uses
+   ::-moz-range-progress.
+   ============================================================ */
+.range-jade {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 36px; /* generous hit area; the visible track is 6px */
+  background: transparent;
+  cursor: pointer;
+}
+.range-jade::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    var(--color-jade) var(--range-pct, 50%),
+    rgba(244, 241, 232, 0.18) var(--range-pct, 50%)
+  );
+}
+.range-jade::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  margin-top: -9px; /* centre the 24px thumb on the 6px track */
+  border-radius: 9999px;
+  background: var(--color-pearl);
+  border: 2px solid var(--color-jade);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.range-jade::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(244, 241, 232, 0.18);
+}
+.range-jade::-moz-range-progress {
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-jade);
+}
+.range-jade::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  background: var(--color-pearl);
+  border: 2px solid var(--color-jade);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.range-jade:focus-visible {
+  outline: none; /* we ring the thumb instead */
+}
+.range-jade:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.range-jade:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(244, 241, 232, 0.18);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ============================================================
+   Reusable visual primitives
+   ============================================================ */
+/* The immersive field lives on body::before, so app-bg containers just let it
+   show through (a faint local lift keeps depth on tall scrolls). */
+.app-bg {
+  background: transparent;
+}
+
+/* ---- Glass: luminous frosted panels ----
+   The fix for "black on black": a light TOP-EDGE highlight (inset shadow) that
+   always catches light regardless of the backdrop, a gentle top-down sheen, a
+   clear border, and saturate() so the colourful field behind shows through. */
+.glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.055));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.16), 0 10px 28px -16px rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+.glass-strong {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.09));
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.22), 0 16px 40px -18px rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+/* ---- Raised: a SOLID, clearly-elevated button surface ----
+   Lighter than the base by design (no translucency lottery), with a bright top
+   highlight so it always reads as a tappable, slightly 3-D control. */
+.raised {
+  background: linear-gradient(180deg, var(--raise-top), var(--raise-bot));
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.18), 0 6px 16px -10px rgba(0, 0, 0, 0.85);
+  color: var(--color-pearl);
+}
+.raised:hover {
+  filter: brightness(1.12);
+}
+.raised:active {
+  filter: brightness(0.95);
+}
+
+/* ---- Action buttons: vivid gradient fills with a glow halo ---- */
+.btn-primary {
+  background: linear-gradient(180deg, #74dca0, #46b074);
+  color: var(--color-ink);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.35), 0 10px 26px -10px rgba(94, 201, 138, 0.65);
+}
+.btn-warm {
+  background: linear-gradient(180deg, #f3b25e, #c47e22);
+  color: var(--color-ink);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.35), 0 10px 26px -10px rgba(224, 150, 47, 0.6);
+}
+
+/* A soft, slowly-breathing aura behind the hero circle — depth + a sense of life. */
+.hero-aura {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 260px;
+  height: 260px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(94, 201, 138, 0.22), transparent 68%);
+  filter: blur(22px);
+  pointer-events: none;
+  z-index: 0;
+  animation: aura-pulse 6.5s ease-in-out infinite;
+}
+@keyframes aura-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.08);
+  }
+}
+
+/* The one selected/active look, reused everywhere so "selected" is unmistakable:
+   a solid jade fill with dark text and a soft jade glow — never a faint tint. */
+.is-selected {
+  background: var(--color-jade) !important;
+  border-color: var(--color-jade) !important;
+  color: var(--color-ink) !important;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.3), 0 6px 18px -6px rgba(94, 201, 138, 0.6) !important;
+}
+
+/* ============================================================
+   Accessibility: honour reduced motion globally as a safety net.
+   (Components also gate motion via a useReducedMotion hook.)
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
