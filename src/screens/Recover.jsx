@@ -51,6 +51,7 @@ export default function Recover() {
   const [mood, setMood] = useState(null);
   const [cost, setCost] = useState("");
   const [note, setNote] = useState("");
+  const [trigger, setTrigger] = useState("");
   const [saved, setSaved] = useState(false);
 
   const toggle = (id) => {
@@ -69,8 +70,16 @@ export default function Recover() {
   const finish = () => {
     if (saved) return;
     setSaved(true);
-    addEvent("soft_landing", { mood: mood ?? null, note: note.trim(), costRough: Number(cost) || 0 });
-    setTimeout(() => navigate("/home", { replace: true }), 700);
+    const ev = addEvent("soft_landing", {
+      mood: mood ?? null,
+      note: note.trim(),
+      trigger: trigger.trim(),
+      costRough: Number(cost) || 0,
+    });
+    setTimeout(
+      () => navigate("/home", { replace: true, state: { justLogged: { id: ev.id, label: "Logged morning-after care." } } }),
+      700
+    );
   };
 
   return (
@@ -137,17 +146,30 @@ export default function Recover() {
             <label className="block">
               <span className="text-sm text-pearl-soft">Roughly, what did last night cost? (optional)</span>
               <div className="mt-2">
-                <AmountField value={cost} currencySymbol={currencySymbol(profile.currency)} onChange={setCost} />
+                <AmountField value={cost} ariaLabel="What last night cost" currencySymbol={currencySymbol(profile.currency)} onChange={setCost} />
               </div>
             </label>
+            {/* Externalize the cause (a situation you can plan for) rather than
+                internalize it (a personal failing) — the AVE-interrupt that keeps a
+                lapse from spiraling into relapse (Marlatt). */}
             <label className="block">
-              <span className="text-sm text-pearl-soft">What did you learn? (optional)</span>
+              <span className="text-sm text-pearl-soft">What set it off? (optional)</span>
+              <input
+                value={trigger}
+                onChange={(e) => setTrigger(e.target.value)}
+                className="mt-2 w-full glass rounded-2xl px-4 min-h-touch text-sm text-pearl focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                placeholder="a place, a feeling, certain people…"
+              />
+              <span className="block text-xs text-pearl-faint mt-1.5">Naming the trigger makes it something to plan for — not a personal failing.</span>
+            </label>
+            <label className="block">
+              <span className="text-sm text-pearl-soft">What would you tell a friend who had last night? (optional)</span>
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 rows={2}
                 className="mt-2 w-full glass rounded-2xl p-3 text-sm focus:outline-none resize-none"
-                placeholder="A note to your future self…"
+                placeholder="Say it to yourself, too…"
               />
             </label>
           </div>

@@ -2,13 +2,13 @@
 // changes with the time of day, plain language throughout, and the balance detail
 // (formerly its own "Balance" tab) folded in as a tap-to-open section.
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { useProfile, useStats } from "../app/hooks.js";
+import { useProfile, useStats, useStore } from "../app/hooks.js";
 import { useReducedMotion } from "../app/motion.js";
-import { addEvent, updateProfile, setGoal } from "../app/store.js";
+import { addEvent, removeEvent, updateProfile, setGoal } from "../app/store.js";
 import { currencySymbol } from "../app/format.js";
-import { YIN_WEIGHTS, YANG_PER_DRINK, baselineSeed } from "../app/selectors.js";
+import { YIN_WEIGHTS, YANG_PER_DRINK, baselineSeed, recentDays } from "../app/selectors.js";
 import { success } from "../app/haptics.js";
 import { play } from "../app/sound.js";
 import YinYang from "../components/YinYang.jsx";
@@ -16,6 +16,8 @@ import Mascot, { quipFor } from "../components/Mascot.jsx";
 import { MetricTile, MoodPicker, Counter, Button } from "../components/ui.jsx";
 import { Toast } from "../components/Feedback.jsx";
 import IntroTour from "../components/IntroTour.jsx";
+import DayStrip from "../components/DayStrip.jsx";
+import { StatusMark } from "../components/status.jsx";
 
 // Plain-language balance read (was "Leaning clear / Centered / Leaning warm",
 // which gave no hint that "warm" means drinking more).
@@ -24,22 +26,51 @@ const LEAN_TEXT = {
   centered: "A steady mix of nights",
   warm: "Drinking a bit more lately",
 };
-// clear = jade (the one green), drank = neutral slate, rest = grey-blue sage.
-const STATUS_DOT = { clear: "bg-jade", drank: "bg-slate", rest: "bg-sage", none: "bg-white/20" };
-
 function greeting(part) {
   return part === "morning" ? "Good morning" : part === "evening" || part === "night" ? "Good evening" : "Good afternoon";
 }
 
 export default function Home() {
   const navigate = useNavigate();
+  const location = useLocation();
   const profile = useProfile();
   const s = useStats();
+  const state = useStore();
   const reduced = useReducedMotion();
   const [toast, setToast] = useState("");
   const [showHow, setShowHow] = useState(false);
+  const [undo, setUndo] = useState(null); // { id, label } — the just-logged entry
   const toastTimer = useRef(0);
-  useEffect(() => () => clearTimeout(toastTimer.current), []);
+  const undoTimer = useRef(0);
+  useEffect(() => () => {
+    clearTimeout(toastTimer.current);
+    clearTimeout(undoTimer.current);
+  }, []);
+
+  const days = recentDays(state, 28);
+
+  // A log flow hands back the new event id so it can be undone right here — a
+  // mis-tapped "I drank" must be reversible (the Abstinence-Violation-Effect
+  // shame spiral is exactly what an unrecoverable mistake would trigger).
+  useEffect(() => {
+    const jl = location.state?.justLogged;
+    if (!jl?.id) return;
+    setUndo(jl);
+    // Consume the router state so a refresh/back can't resurrect the bar.
+    navigate(location.pathname, { replace: true, state: null });
+    clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => setUndo(null), 6500);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
+
+  const doUndo = () => {
+    if (undo?.id) {
+      removeEvent(undo.id);
+      success();
+    }
+    clearTimeout(undoTimer.current);
+    setUndo(null);
+  };
 
   // First-launch how-to: shown once, then remembered on-device.
   const [tourDone, setTourDone] = useState(false);
@@ -65,11 +96,13 @@ export default function Home() {
   const drankLastNight = s.drankToday || yesterday?.status === "drank";
   const needsCheckin = s.moodToday == null;
 
-  // Resolve to one of: a morning recovery CTA, an inline daily check-in, or the
-  // nightly "are you drinking tonight?" decision.
+  // Resolve to one of: a morning recovery CTA, a "tonight's already logged"
+  // confirmation, an inline daily check-in, or the nightly decision.
   let primary;
   if (part === "morning" && drankLastNight) {
     primary = { kind: "cta", emoji: "🌅", label: "Morning after", sub: "A few small things to feel better", to: "/recover" };
+  } else if (s.decidedToday) {
+    primary = { kind: "logged" };
   } else if ((part === "morning" || part === "day") && needsCheckin) {
     primary = { kind: "checkin" };
   } else {
@@ -81,11 +114,17 @@ export default function Home() {
       to: "/crossroads",
     };
   }
+  const todayStatus = s.drankToday ? "drank" : s.frozenToday ? "frozen" : "clear";
 
   const seed = baselineSeed(profile);
 
   return (
-    <div className="pt-2">
+    <motion.div
+      className="pt-2"
+      initial={reduced ? false : { opacity: 0, y: 8 }}
+      animate={reduced ? {} : { opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: [0.22, 0.61, 0.36, 1] }}
+    >
       {/* header */}
       <div className="flex items-center justify-between px-1 pt-2">
         <div>
@@ -238,6 +277,28 @@ export default function Home() {
             <p className="text-sm text-pearl-soft mb-3 mt-0.5">One tap. Showing up is the whole habit.</p>
             <MoodPicker value={null} onChange={logMood} />
           </div>
+        ) : primary.kind === "logged" ? (
+          <div className="glass-strong rounded-3xl p-5 flex items-center gap-4">
+            <StatusMark status={todayStatus} size={46} />
+            <div className="flex-1">
+              <div className="font-display text-lg text-pearl">
+                {s.clearToday ? "Tonight's alcohol-free 🌿" : s.frozenToday ? "Tonight's logged — protected" : "Tonight's logged"}
+              </div>
+              <div className="text-sm text-pearl-soft">
+                {s.clearToday
+                  ? "Nice choice. Counted and kept."
+                  : s.frozenToday
+                  ? "A planned night — your streak stayed safe."
+                  : "Logged honestly — no shame, your history's safe."}
+              </div>
+            </div>
+            <button
+              onClick={() => navigate("/crossroads")}
+              className="raised rounded-xl px-3 py-2 text-sm text-pearl shrink-0 active:scale-95 transition"
+            >
+              Change
+            </button>
+          </div>
         ) : (
           <button
             onClick={() => navigate(primary.to)}
@@ -306,32 +367,41 @@ export default function Home() {
         </MetricTile>
       </div>
 
-      {/* last 7 days */}
-      <div className="glass rounded-3xl p-4 mt-3">
-        <div className="text-sm text-pearl-soft mb-2">Last 7 days</div>
-        <div className="flex items-center justify-between">
-          {s.last7.map((d) => (
-            <div key={d.day} className="flex flex-col items-center gap-1.5">
-              <span className={`h-3 w-3 rounded-full ${STATUS_DOT[d.status]}`} />
-              <span className="text-[10px] text-pearl-faint">{d.day.slice(8)}</span>
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-white/10 text-[11px] text-pearl-faint">
-          <Dot className="bg-jade" /> alcohol-free
-          <Dot className="bg-sage" /> checked in
-          <Dot className="bg-slate" /> drank
-        </div>
+      {/* scrollable nightly timeline */}
+      <div className="mt-3">
+        <DayStrip days={days} lastLoggedDay={undo?.day} />
       </div>
 
       <div className="mt-5 mb-2 px-1">
         <Mascot context="home" quip={quipFor("home", s.currentClearStreak)} />
       </div>
 
+      {/* Undo the entry just logged — defuses the shame of an unrecoverable mis-tap. */}
+      <AnimatePresence>
+        {undo && (
+          <motion.div
+            className="fixed left-1/2 -translate-x-1/2 z-[70] px-4 w-full max-w-sm"
+            style={{ bottom: "calc(var(--safe-bottom) + 5.5rem)" }}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 18 }}
+            transition={{ duration: 0.3 }}
+            role="status"
+          >
+            <div className="glass-strong rounded-2xl pl-4 pr-2 py-2.5 flex items-center gap-3 border border-white/20">
+              <span className="flex-1 text-sm text-pearl">{undo.label || "Logged."}</span>
+              <button onClick={doUndo} className="raised rounded-xl px-3 py-1.5 text-sm font-medium text-pearl active:scale-95 transition">
+                Undo
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Toast show={!!toast}>{toast}</Toast>
 
       <AnimatePresence>{showTour && <IntroTour onClose={closeTour} />}</AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 
@@ -345,8 +415,4 @@ function QuickLink({ emoji, label, onClick }) {
       <span>{label}</span>
     </button>
   );
-}
-
-function Dot({ className }) {
-  return <span className={`inline-block h-2.5 w-2.5 rounded-full ${className}`} />;
 }

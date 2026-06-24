@@ -1,7 +1,7 @@
 // src/screens/Settings.jsx — control, privacy, data ownership. (Shell route.)
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useProfile, useSettings, useStats } from "../app/hooks.js";
+import { useProfile, useSettings, useStats, useStore } from "../app/hooks.js";
 import {
   updateProfile,
   updateSettings,
@@ -14,7 +14,7 @@ import {
 } from "../app/store.js";
 import { GOALS, BREAK_PRESETS, goalConfig } from "../app/selectors.js";
 import { money } from "../app/format.js";
-import { Button, Slider, Stepper, Chip } from "../components/ui.jsx";
+import { Button, Slider, Stepper, Chip, Sheet } from "../components/ui.jsx";
 import { Toast } from "../components/Feedback.jsx";
 
 const CURRENCIES = ["INR", "USD", "EUR", "GBP", "AUD", "CAD"];
@@ -53,8 +53,10 @@ export default function Settings() {
   const profile = useProfile();
   const settings = useSettings();
   const s = useStats();
+  const store = useStore();
   const [toast, setToast] = useState("");
   const [confirmWipe, setConfirmWipe] = useState(false);
+  const [pendingImport, setPendingImport] = useState(null); // parsed backup awaiting a Replace/Merge choice
   const fileRef = useRef(null);
   const [installEvt, setInstallEvt] = useState(null);
 
@@ -97,14 +99,31 @@ export default function Settings() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        importData(JSON.parse(String(reader.result)));
-        flash("Backup restored.");
+        const obj = JSON.parse(String(reader.result));
+        if (!obj || obj.app !== "tequila-tao") throw new Error("bad");
+        if ((store.events || []).length > 0) {
+          // There's data on this device — ask before overwriting vs combining.
+          setPendingImport(obj);
+        } else {
+          importData(obj, { mode: "replace" });
+          flash("Backup restored.");
+        }
       } catch {
         flash("That file didn't look like a backup.");
       }
     };
     reader.readAsText(file);
     e.target.value = "";
+  };
+
+  const applyImport = (mode) => {
+    try {
+      importData(pendingImport, { mode });
+      flash(mode === "replace" ? "Backup restored." : "Backup merged in.");
+    } catch (err) {
+      flash(err?.message || "Couldn't restore that backup.");
+    }
+    setPendingImport(null);
   };
 
   return (
@@ -230,22 +249,26 @@ export default function Settings() {
       <Section title="Your data">
         <p className="text-sm text-pearl-soft">Everything lives on this device. Take it or wipe it any time.</p>
         <div className="grid grid-cols-2 gap-2.5">
-          <Button variant="glass" onClick={doExport}>Export backup</Button>
-          <Button variant="glass" onClick={() => fileRef.current?.click()}>Import backup</Button>
+          <Button variant="glass" onClick={doExport}>
+            <DownloadIcon /> Export backup
+          </Button>
+          <Button variant="glass" onClick={() => fileRef.current?.click()}>
+            <UploadIcon /> Import backup
+          </Button>
         </div>
         <input ref={fileRef} type="file" accept="application/json,.json" onChange={doImport} className="hidden" />
-        <button onClick={() => { softResetStreak(); flash("Streak restarted — totals kept."); }} className="w-full text-left text-sm text-pearl-soft py-2.5 hover:text-pearl">
+        <button onClick={() => { softResetStreak(); flash("Streak restarted — totals kept."); }} className="w-full text-left text-sm text-pearl-soft py-2.5 hover:text-pearl min-h-touch">
           Soft-reset streak <span className="text-pearl-faint">(keeps all lifetime totals)</span>
         </button>
         {!confirmWipe ? (
-          <button onClick={() => setConfirmWipe(true)} className="w-full text-left text-sm py-2.5 text-pearl-soft hover:text-pearl">
+          <button onClick={() => setConfirmWipe(true)} className="w-full text-left text-sm py-2.5 text-pearl-soft hover:text-pearl min-h-touch">
             Clear everything…
           </button>
         ) : (
-          <div className="rounded-2xl p-3" style={{ background: "rgba(122,15,43,0.18)", border: "1px solid rgba(122,15,43,0.5)" }}>
-            <p className="text-sm text-pearl">Erase all progress permanently? This can't be undone.</p>
+          <div className="rounded-2xl p-4" style={{ background: "rgba(122,15,43,0.18)", border: "1px solid rgba(122,15,43,0.5)" }}>
+            <p className="text-sm text-pearl">Erase all progress permanently? This can't be undone — export a backup first if you're unsure.</p>
             <div className="grid grid-cols-2 gap-2.5 mt-3">
-              <Button variant="ghost" onClick={() => setConfirmWipe(false)}>Keep it</Button>
+              <Button variant="glass" onClick={() => setConfirmWipe(false)}>Keep it</Button>
               <Button variant="wine" onClick={() => { clearAll(); setConfirmWipe(false); flash("Cleared. A fresh start."); navigate("/"); }}>Erase all</Button>
             </div>
           </div>
@@ -277,6 +300,23 @@ export default function Settings() {
         <p className="text-xs text-pearl-faint text-center pt-2">Tequila Tao v{APP_VERSION} · made with care, not for sale</p>
       </Section>
 
+      <Sheet open={!!pendingImport} onClose={() => setPendingImport(null)} title="Restore backup">
+        <p className="text-sm text-pearl-soft">
+          You already have data on this device. Replace it with the backup, or merge the two together?
+        </p>
+        <div className="grid grid-cols-1 gap-2.5 mt-4">
+          <Button variant="primary" full onClick={() => applyImport("replace")}>
+            Replace everything with the backup
+          </Button>
+          <Button variant="glass" full onClick={() => applyImport("merge")}>
+            Merge (keep both, no duplicates)
+          </Button>
+          <Button variant="ghost" full onClick={() => setPendingImport(null)}>
+            Cancel
+          </Button>
+        </div>
+      </Sheet>
+
       <Toast show={!!toast}>{toast}</Toast>
     </div>
   );
@@ -287,5 +327,20 @@ function NavRow({ label, onClick }) {
     <button onClick={onClick} className="glass rounded-2xl px-4 py-3 text-sm text-pearl-soft text-left hover:bg-white/10 min-h-touch">
       {label} →
     </button>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 3v12M7 11l5 5 5-5M5 21h14" />
+    </svg>
+  );
+}
+function UploadIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 21V9M7 13l5-5 5 5M5 3h14" />
+    </svg>
   );
 }

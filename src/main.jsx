@@ -2,6 +2,7 @@
 import React, { Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { MotionConfig } from "framer-motion";
 // Self-hosted fonts (latin subset only) — no Google CDN, so nothing leaves the
 // device and typography works fully offline. Vite hashes the woff2 into /assets,
 // where the immutable cache headers + service worker pick them up.
@@ -57,6 +58,9 @@ function RedirectIfOnboarded({ children }) {
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
+      {/* Belt-and-braces for the OS reduced-motion setting across all Framer
+          motion. The in-app override is still handled by useReducedMotion. */}
+      <MotionConfig reducedMotion="user">
       <AdaptiveTheme />
       <Suspense fallback={<Loading />}>
         <Routes>
@@ -89,6 +93,7 @@ createRoot(document.getElementById("root")).render(
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+      </MotionConfig>
     </BrowserRouter>
   </React.StrictMode>
 );
@@ -98,4 +103,19 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   });
+}
+
+// Native (Capacitor) shell only: render edge-to-edge with the status bar
+// overlaying the WebView and light icons over the dark canvas — consistent
+// across every Android version, not just the OS-enforced edge-to-edge on 15+.
+// The app's CSS safe-area insets (viewport-fit=cover) keep content clear of the
+// notch/cutouts. Entirely tree-shaken out of the web build (no-op there).
+import { Capacitor } from "@capacitor/core";
+if (Capacitor.isNativePlatform()) {
+  import("@capacitor/status-bar")
+    .then(({ StatusBar, Style }) => {
+      StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
+      StatusBar.setStyle({ style: Style.Dark }).catch(() => {}); // light icons on dark bg
+    })
+    .catch(() => {});
 }

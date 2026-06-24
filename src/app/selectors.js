@@ -123,27 +123,70 @@ function startOfWeekTs(now = Date.now()) {
   return now - 7 * DAY_MS;
 }
 
-// Build a per-day rollup of outcomes from the event log.
-function buildDays(events) {
+// Build a per-day rollup of outcomes from the event log. This rollup is the
+// idempotency layer: only the LAST clear_night / drink_night of a day "counts"
+// (so re-logging the same night, or correcting a count, can't double-count money
+// or drinks), and a day's mood is the latest by timestamp (stable even when an
+// imported log is out of insertion order). Malformed or future-dated events are
+// ignored so a clock jump or a corrupted backup can't poison the derived stats.
+function buildDays(events, now = Date.now()) {
   const days = new Map(); // dayKey -> outcome
   for (const e of events) {
+    if (!e || !Number.isFinite(e.ts) || e.ts > now + DAY_MS) continue;
     const k = localDayKey(e.ts);
     const o =
-      days.get(k) ||
-      { clear: false, drinkUnfrozen: false, drinkFrozen: false, reset: false, any: false, mood: null };
+      days.get(k) || {
+        clear: false,
+        drinkUnfrozen: false,
+        drinkFrozen: false,
+        reset: false,
+        any: false,
+        mood: null,
+        moodTs: -Infinity,
+        clearMoney: 0,
+        clearDrinks: 0,
+        clearTs: -Infinity,
+        drinkCount: 0,
+        drinkTs: -Infinity,
+      };
     o.any = true;
-    if (e.type === "clear_night") o.clear = true;
-    else if (e.type === "drink_night") {
+    if (e.type === "clear_night") {
+      o.clear = true;
+      if (e.ts >= o.clearTs) {
+        o.clearTs = e.ts;
+        o.clearMoney = num(e.payload?.moneySaved);
+        o.clearDrinks = num(e.payload?.drinksAvoided);
+      }
+    } else if (e.type === "drink_night") {
       if (e.payload?.frozen) o.drinkFrozen = true;
       else o.drinkUnfrozen = true;
+      if (e.ts >= o.drinkTs) {
+        o.drinkTs = e.ts;
+        o.drinkCount = num(e.payload?.drinks);
+      }
     } else if (e.type === "streak_reset") o.reset = true;
     if (e.type === "mood_checkin" || e.type === "soft_landing") {
       const m = e.payload?.mood;
-      if (typeof m === "number") o.mood = m; // last of the day wins
+      if (typeof m === "number" && e.ts >= o.moodTs) {
+        o.mood = m;
+        o.moodTs = e.ts;
+      }
     }
     days.set(k, o);
   }
   return days;
+}
+
+// One status per day — the single source of truth for the 7-day strip, the
+// heatmap, and recentDays. A frozen (protected) drink is its OWN state; before,
+// it fell through to "rest" and looked identical to a mood-only check-in.
+export function dayStatus(o) {
+  if (!o) return "none";
+  if (o.drinkUnfrozen) return "drank";
+  if (o.drinkFrozen) return "frozen";
+  if (o.clear) return "clear";
+  if (o.any) return "rest";
+  return "none";
 }
 
 // Inclusive list of day keys from `fromTs` to today (local days).
@@ -164,10 +207,14 @@ function dayRange(fromTs, toTs = Date.now()) {
 }
 
 export function computeStats(state) {
-  const { events = [], profile } = state;
+  const { profile } = state;
   const now = Date.now();
   const todayKey = localDayKey(now);
-  const days = buildDays(events);
+  // Ignore malformed / future-dated events everywhere, so a clock jump or a
+  // corrupted backup is handled uniformly (never invisibly skipped by the streak
+  // windows yet still summed into lifetime totals).
+  const events = (state.events || []).filter((e) => e && Number.isFinite(e.ts) && e.ts <= now + DAY_MS);
+  const days = buildDays(events, now);
 
   // ---- sums / counts over the whole log (monotonic by construction) ----
   let clearNights = 0;
@@ -183,31 +230,29 @@ export function computeStats(state) {
   const monthKey = todayKey.slice(0, 7);
   const weekStart = startOfWeekTs(now);
 
+  // Counts that are legitimately multiple-per-day (you can ride out three
+  // cravings in one day — each is a real win) come straight off the log.
   for (const e of events) {
     const p = e.payload || {};
-    switch (e.type) {
-      case "clear_night":
-        clearNights++;
-        moneyKept += num(p.moneySaved);
-        drinksAvoided += num(p.drinksAvoided);
-        if (localDayKey(e.ts).slice(0, 7) === monthKey) moneyKeptThisMonth += num(p.moneySaved);
-        break;
-      case "drink_night":
-        drinkNights++;
-        totalDrinks += num(p.drinks);
-        if (p.frozen && e.ts >= weekStart) frozenThisWeek++;
-        break;
-      case "urge_surf":
-        if (p.outcome === "made_it") urgesSurfed++;
-        break;
-      case "soft_landing":
-        softLandings++;
-        break;
-      case "mood_checkin":
-        moodCheckins++;
-        break;
-      default:
-        break;
+    if (e.type === "urge_surf") {
+      if (p.outcome === "made_it") urgesSurfed++;
+    } else if (e.type === "soft_landing") softLandings++;
+    else if (e.type === "mood_checkin") moodCheckins++;
+  }
+  // Money / drinks / night counts come off the per-day rollup so re-logging the
+  // same night (or a clear+drink contradiction on one day) can never double-count.
+  // A day's clear payload is credited ONLY when nothing overrides it that day.
+  for (const [k, o] of days) {
+    if (o.clear && !o.drinkUnfrozen && !o.drinkFrozen && !o.reset) {
+      clearNights++;
+      moneyKept += o.clearMoney;
+      drinksAvoided += o.clearDrinks;
+      if (k.slice(0, 7) === monthKey) moneyKeptThisMonth += o.clearMoney;
+    }
+    if (o.drinkUnfrozen || o.drinkFrozen) {
+      drinkNights++;
+      totalDrinks += o.drinkCount;
+      if (o.drinkFrozen && o.drinkTs >= weekStart) frozenThisWeek++;
     }
   }
 
@@ -264,11 +309,20 @@ export function computeStats(state) {
   const goal = GOALS[profile?.intent] || GOALS.cutback;
   const goalStartTs = num(profile?.goalStart) || firstTs;
   const hasJourney = events.length > 0 || !!profile?.goalStart;
-  const journeyDays = hasJourney ? dayRange(Math.min(goalStartTs, firstTs), now) : [];
+  // Anchor the journey at the goal start (clamped to now) so switching goal —
+  // which restamps goalStart precisely to restart the count — actually reads
+  // "Day 1" today, instead of inheriting days-since-last-drink from old history.
+  // Fall back to the first event only when no goal has been stamped.
+  const anchor = profile?.goalStart ? Math.min(goalStartTs, now) : firstTs;
+  const journeyDays = hasJourney ? dayRange(anchor, now) : [];
+  // Any drink — frozen/planned included — resets the sober run, AND so does an
+  // explicit soft-reset (otherwise "Soft-reset streak" is a no-op for the quit/
+  // break users most likely to press it). bestSoberRun preserves the pre-reset
+  // best, so resetting is never punishing.
   let currentSoberRun = 0;
   for (let i = journeyDays.length - 1; i >= 0; i--) {
     const o = days.get(journeyDays[i]);
-    if (o && (o.drinkUnfrozen || o.drinkFrozen)) break;
+    if (o && (o.drinkUnfrozen || o.drinkFrozen || o.reset)) break;
     currentSoberRun++;
   }
   let bestSoberRun = 0;
@@ -276,7 +330,7 @@ export function computeStats(state) {
     let sr = 0;
     for (const k of journeyDays) {
       const o = days.get(k);
-      if (o && (o.drinkUnfrozen || o.drinkFrozen)) sr = 0;
+      if (o && (o.drinkUnfrozen || o.drinkFrozen || o.reset)) sr = 0;
       else {
         sr++;
         if (sr > bestSoberRun) bestSoberRun = sr;
@@ -288,7 +342,10 @@ export function computeStats(state) {
   // Time-boxed break: a FIXED calendar countdown from the goal start, so the end
   // date never moves even if a day gets slipped (partial credit, never reset).
   const breakLen = Math.max(1, num(profile?.breakDays) || GOALS.break.breakDays);
-  const breakElapsed = goal.metric === "countdown" && hasJourney ? dayRange(goalStartTs, now).length : 0;
+  // Floor at Day 1 (clamp the start to now) so clock skew / a restored backup
+  // with a future goalStart can't read "Day 0 of N".
+  const breakElapsed =
+    goal.metric === "countdown" && hasJourney ? Math.max(1, dayRange(Math.min(goalStartTs, now), now).length) : 0;
   const breakDaysLeft = Math.max(0, breakLen - breakElapsed);
   const breakComplete = goal.metric === "countdown" && breakElapsed >= breakLen;
   const breakProgressPct = clamp((breakElapsed / breakLen) * 100, 0, 100);
@@ -306,7 +363,12 @@ export function computeStats(state) {
   // (never-shaming). So: day 1 ≈ baseline, sustained sobriety ⇒ a genuinely full
   // circle that was earned, and switching modes no longer jumps to a fake 100%.
   const cleanHorizon = goal.metric === "countdown" ? breakLen : 100;
-  const baselineYin = startingYinPct(profile);
+  // Cap the starting baseline below full so the circle still has room to grow and
+  // a slip is still visible — otherwise a maintainer with a 0-drink baseline pins
+  // the clean circle at a flat, inert 100% from day one. Normal quit baselines
+  // (≈40% for 14 drinks/wk) are far below this, so their documented trajectory is
+  // unchanged; the circle always still fills to a full 100% at the horizon.
+  const baselineYin = Math.min(startingYinPct(profile), 85);
   const soberProgress = clamp(currentSoberRun / cleanHorizon, 0, 1);
   const cleanPct = clamp(baselineYin + (100 - baselineYin) * soberProgress, 0, 100);
 
@@ -342,8 +404,10 @@ export function computeStats(state) {
   const nextLevel = LEVELS[levelIndex + 1] || null;
 
   // ---- milestones / patina ----
-  // Patina grows with the goal's PRIMARY streak: logged clear nights for cutback,
-  // continuous sober days for break/quit — so a quitter's ring ages by sobriety.
+  // Patina is a permanent, best-ever trophy ring, keyed to the goal's primary
+  // streak (best clear-night run for cutback, best sober run for break/quit). It
+  // never recedes after a slip — a milestone you earned stays earned (never-
+  // shaming), so it reflects your best, not your current run.
   const reachedClearMilestones = CLEAR_STREAK_MILESTONES.filter((m) => bestPrimaryStreak >= m);
   const reachedMoneyMilestones = MONEY_MILESTONES.filter((m) => moneyKept >= m);
   const patinaSegments = reachedClearMilestones.length;
@@ -359,16 +423,17 @@ export function computeStats(state) {
   for (let i = 6; i >= 0; i--) {
     const k = dayKeyOffset(i, now);
     const o = days.get(k);
-    let status = "none";
-    if (o?.drinkUnfrozen) status = "drank";
-    else if (o?.clear) status = "clear";
-    else if (o?.any) status = "rest";
-    last7.push({ day: k, status, checkedIn: !!o?.any });
+    last7.push({ day: k, status: dayStatus(o), checkedIn: !!o?.any });
   }
 
-  const moodToday = days.get(todayKey)?.mood ?? null;
-  const drankToday = !!days.get(todayKey)?.drinkUnfrozen;
-  const clearToday = !!days.get(todayKey)?.clear;
+  const todayO = days.get(todayKey);
+  const moodToday = todayO?.mood ?? null;
+  const drankToday = !!todayO?.drinkUnfrozen;
+  const frozenToday = !!todayO?.drinkFrozen;
+  const clearToday = !!todayO?.clear;
+  // Has tonight's drink-or-not decision already been logged? (A mood check-in
+  // alone doesn't count — that's not a decision.)
+  const decidedToday = drankToday || frozenToday || clearToday;
 
   const freezesRemaining = Math.max(0, 2 - frozenThisWeek);
 
@@ -421,7 +486,9 @@ export function computeStats(state) {
     last7,
     moodToday,
     drankToday,
+    frozenToday,
     clearToday,
+    decidedToday,
     // freezes
     freezesRemaining,
     frozenThisWeek,
@@ -437,18 +504,58 @@ export function clamp(x, a, b) {
   return Math.min(b, Math.max(a, x));
 }
 
-// Day-rollup heatmap for the Clarity Garden (most recent `days` days).
+// Day-rollup heatmap for the Progress screen (most recent `days` days).
 export function heatmap(state, dayCount = 84) {
-  const days = buildDays(state.events || []);
+  const now = Date.now();
+  const days = buildDays(state.events || [], now);
   const out = [];
   for (let i = dayCount - 1; i >= 0; i--) {
-    const k = dayKeyOffset(i);
+    const k = dayKeyOffset(i, now);
     const o = days.get(k);
-    let status = "none";
-    if (o?.drinkUnfrozen) status = "drank";
-    else if (o?.clear) status = "clear";
-    else if (o?.any) status = "rest";
-    out.push({ day: k, status, mood: o?.mood ?? null });
+    out.push({ day: k, status: dayStatus(o), mood: o?.mood ?? null });
   }
   return out;
+}
+
+// Recent N days for the scrollable Home day-strip, oldest → newest (today last).
+// Each cell carries enough to render a status mark and a tap-to-inspect detail.
+export function recentDays(state, dayCount = 28) {
+  const now = Date.now();
+  const todayKey = localDayKey(now);
+  const days = buildDays(state.events || [], now);
+  const out = [];
+  for (let i = dayCount - 1; i >= 0; i--) {
+    const k = dayKeyOffset(i, now);
+    const o = days.get(k);
+    out.push({
+      day: k,
+      status: dayStatus(o),
+      mood: o?.mood ?? null,
+      moneySaved: o?.clearMoney || 0,
+      drinksAvoided: o?.clearDrinks || 0,
+      drinks: o?.drinkCount || 0,
+      isToday: k === todayKey,
+    });
+  }
+  return out;
+}
+
+// Timestamp to STAMP a backfilled log onto a given local day — ~21:00 that day,
+// clamped to "now" so today's log never lands in the future. Keyed off the local
+// day so a DST shift can't move it to the wrong calendar day.
+export function dayKeyToLogTs(dayKey) {
+  const [y, m, d] = String(dayKey).split("-").map(Number);
+  if (!y || !m || !d) return Date.now();
+  const dt = new Date(y, m - 1, d, 21, 0, 0, 0);
+  return Math.min(dt.getTime(), Date.now());
+}
+
+// Human label for a day key relative to today ("Today" / "Yesterday" / "Mon 14").
+export function dayLabel(dayKey, now = Date.now()) {
+  if (dayKey === localDayKey(now)) return "Today";
+  if (dayKey === dayKeyOffset(1, now)) return "Yesterday";
+  const [y, m, d] = String(dayKey).split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const wd = dt.toLocaleDateString(undefined, { weekday: "short" });
+  return `${wd} ${d}`;
 }

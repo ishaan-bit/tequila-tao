@@ -40,6 +40,7 @@ export default function Urge() {
   const [phase, setPhase] = useState("pre"); // pre | breathe | post
   const [before, setBefore] = useState(6);
   const [after, setAfter] = useState(3);
+  const [done, setDone] = useState(false);
 
   // breathe timers
   const [remaining, setRemaining] = useState(FULL);
@@ -82,13 +83,18 @@ export default function Urge() {
   const skipTo90 = () => setRemaining((r) => Math.min(r, 90));
 
   const finish = (outcome) => {
-    addEvent("urge_surf", { before, after, outcome });
-    if (outcome === "made_it") {
-      success();
-      navigate("/home", { replace: true });
-    } else {
-      navigate("/sendoff", { replace: true });
+    if (done) return;
+    if (outcome === "drank") {
+      // Defer the urge_surf write to Sendoff so backing out of it doesn't leave a
+      // phantom "failed" craving skewing the proof stats. No replace: → Back
+      // returns here to the post-step.
+      navigate("/sendoff", { state: { before, after, fromUrge: true } });
+      return;
     }
+    setDone(true);
+    const ev = addEvent("urge_surf", { before, after, outcome: "made_it" });
+    success();
+    navigate("/home", { replace: true, state: { justLogged: { id: ev.id, label: "Logged — you rode it out." } } });
   };
 
   const mmss = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`;
@@ -112,9 +118,15 @@ export default function Urge() {
               </div>
               <Slider id="before" ariaLabel="Craving strength, 1 to 10" value={before} min={1} max={10} onChange={setBefore} />
             </div>
-            <Button variant="primary" full onClick={() => setPhase("breathe")}>
+            <Button variant="primary" size="lg" full onClick={() => setPhase("breathe")}>
               Begin
             </Button>
+            <button
+              onClick={() => navigate("/terms")}
+              className="block mx-auto text-xs text-pearl-faint underline underline-offset-4 hover:text-pearl min-h-touch"
+            >
+              In crisis or unsafe? Get urgent help →
+            </button>
           </div>
         )}
 
@@ -171,17 +183,20 @@ export default function Urge() {
                 </div>
               )}
             </div>
+            {/* Self-efficacy proof at the MOMENT of success — enactive mastery is
+                the strongest lever (Bandura), so surface it here, not just on Progress. */}
+            <div className="glass rounded-2xl p-3 text-center text-sm text-pearl-soft">
+              Riding this out makes craving <span className="text-jade font-semibold">#{s.urgesSurfed + 1}</span> you've gotten through
+              {after < before ? <> — and it dropped <span className="text-jade font-semibold tnum">{before - after}</span> {before - after === 1 ? "point" : "points"} just now.</> : "."}
+            </div>
             <div className="space-y-3">
-              <Button variant="primary" full onClick={() => finish("made_it")}>
+              <Button variant="primary" size="lg" full disabled={done} onClick={() => finish("made_it")}>
                 I made it — I didn't drink
               </Button>
-              <Button variant="ghost" full onClick={() => finish("drank")}>
+              <Button variant="ghost" full disabled={done} onClick={() => finish("drank")}>
                 I'm choosing to drink (that's okay)
               </Button>
             </div>
-            <p className="text-center text-xs text-pearl-faint">
-              You've gotten through {s.urgesSurfed} {s.urgesSurfed === 1 ? "craving" : "cravings"} so far.
-            </p>
           </div>
         )}
       </div>

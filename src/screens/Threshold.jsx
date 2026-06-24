@@ -25,10 +25,11 @@ export default function Threshold() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        importData(JSON.parse(String(reader.result)));
+        // A fresh device — restore the backup as-is.
+        importData(JSON.parse(String(reader.result)), { mode: "replace" });
         // if the backup was onboarded, the redirect above fires on re-render
-      } catch {
-        setErr("That file didn't look like a Tequila Tao backup.");
+      } catch (err) {
+        setErr(err?.message || "That file didn't look like a Tequila Tao backup.");
       }
     };
     reader.readAsText(file);

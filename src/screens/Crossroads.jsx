@@ -89,7 +89,7 @@ export default function Crossroads() {
                 </div>
                 <p className="text-sm text-pearl-soft mt-1">
                   {s.isAbstinence
-                    ? "If tonight got away from you, log it honestly — a lapse isn't a relapse, and your progress stays."
+                    ? "If tonight got away from you, log it honestly — a lapse isn't a relapse. Your day count restarts, but your best run and every lifetime total stay."
                     : "No shame. We'll log it honestly and keep your history safe."}
                 </p>
               </button>
@@ -103,11 +103,18 @@ export default function Crossroads() {
                   >
                     <div className="pt-4 flex flex-col items-center gap-3">
                       <span className="text-sm text-pearl-soft">How many drinks, roughly?</span>
-                      <Stepper value={drinks} min={1} max={20} label="drinks" onChange={setDrinks} />
+                      <Stepper value={drinks} min={0} max={20} label="drinks" onChange={setDrinks} />
+                      {drinks === 0 && (
+                        <p className="text-xs text-jade text-center">Zero drinks? That's an alcohol-free night — we'll log it as the win it is.</p>
+                      )}
                       <Button
-                        variant="warm"
+                        variant={drinks === 0 ? "primary" : "warm"}
                         full
-                        onClick={() => navigate("/sendoff", { state: { drinks } })}
+                        onClick={() =>
+                          drinks === 0
+                            ? navigate("/clarity")
+                            : navigate("/sendoff", { state: { drinks } })
+                        }
                       >
                         Continue
                       </Button>

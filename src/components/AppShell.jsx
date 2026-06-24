@@ -1,7 +1,8 @@
 // src/components/AppShell.jsx — main layout with a safe-area bottom tab bar.
 // Three plain tabs: Home · Progress · Settings. (The old "Center" + "Balance"
 // were near-duplicate surfaces; Balance's detail now lives inside Home.)
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { tap } from "../app/haptics.js";
 
 const TABS = [
@@ -11,9 +12,23 @@ const TABS = [
 ];
 
 export default function AppShell() {
+  const { pathname } = useLocation();
+  const mainRef = useRef(null);
+  // On a tab change, move focus to the page container so keyboard/AT users aren't
+  // stranded on the bottom nav and the new screen is perceivable.
+  useEffect(() => {
+    mainRef.current?.focus();
+  }, [pathname]);
+
   return (
     <div className="app-bg min-h-screen-safe flex flex-col">
-      <main className="flex-1 w-full max-w-xl mx-auto px-safe pb-28 pt-safe">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:glass-strong focus:rounded-xl focus:px-4 focus:py-2 focus:text-pearl"
+      >
+        Skip to content
+      </a>
+      <main id="main" ref={mainRef} tabIndex={-1} className="flex-1 w-full max-w-xl mx-auto px-safe pb-28 pt-safe focus:outline-none">
         <Outlet />
       </main>
       <nav
