@@ -33,6 +33,7 @@ export default function Sendoff() {
   const [freeze, setFreeze] = useState(false);
   const [kit, setKit] = useState([]);
   const [promise, setPromise] = useState(false);
+  const [trigger, setTrigger] = useState(""); // optional: what made tonight hard
   const [done, setDone] = useState(false);
 
   const canFreeze = s.freezesRemaining > 0;
@@ -88,6 +89,7 @@ export default function Sendoff() {
           currency: profile.currency,
           frozen: freeze && canFreeze && !s.isAbstinence,
           harmKit: [...kit, ...(promise ? ["clear-promise"] : [])],
+          trigger: trigger.trim(),
         },
         logTs
       );
@@ -118,7 +120,7 @@ export default function Sendoff() {
         )}
         <div className="relative z-10 max-w-md mx-auto">
           <BackHeader title={isZero ? "Tonight" : "Drinking tonight"} onBack={() => navigate(forDay ? "/home" : "/crossroads")} />
-          <div className="px-safe pb-16 space-y-4">
+          <div className="px-safe pb-gutter space-y-4">
             <div className="text-center pt-2 pb-1">
               <h2 className="font-display text-2xl text-pearl">
                 {isZero
@@ -219,13 +221,31 @@ export default function Sendoff() {
                   </span>
                   <p className="text-sm text-pearl-faint mt-1 pl-[1.875rem]">e.g. water between drinks, or a safe ride home.</p>
                 </button>
+
+                {/* recovery-oriented reflection — externalize the cause (a situation
+                    to plan for) rather than internalize it (a personal failing). */}
+                <label className="block glass rounded-2xl p-4">
+                  <span className="text-sm text-pearl-soft">What made tonight hard? (optional)</span>
+                  <input
+                    value={trigger}
+                    onChange={(e) => setTrigger(e.target.value)}
+                    placeholder="a place, a feeling, certain people…"
+                    className="mt-2 w-full glass rounded-xl px-4 min-h-touch text-sm text-pearl focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                  />
+                  <span className="block text-xs text-pearl-faint mt-1.5">Naming it makes it something to plan for — not a personal failing.</span>
+                </label>
               </>
             )}
 
-            <Button variant={isZero ? "primary" : "warm"} size="lg" full disabled={done} onClick={confirm}>
-              {done ? "Saved ✓" : isZero ? "Save as alcohol-free 🌿" : "Save & continue"}
+            <Button variant={isZero ? "primary" : "glass"} size="lg" full disabled={done} onClick={confirm}>
+              {done ? "Saved ✓" : isZero ? "Save as alcohol-free 🌿" : "Save tonight"}
             </Button>
-            <p className="text-center text-xs text-pearl-faint">Your money kept & drinks avoided stay exactly where they are.</p>
+            {!isZero && (
+              <div className="glass rounded-2xl p-4 text-center text-sm text-pearl-soft">
+                Your progress is still here — money kept and drinks avoided don't move, and your best run still stands.
+                <span className="block text-pearl-faint mt-1">Tomorrow morning, tap <span className="text-pearl">Morning after</span> for a few small things to feel better.</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

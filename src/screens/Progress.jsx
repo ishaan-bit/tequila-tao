@@ -1,24 +1,22 @@
-// src/screens/Progress.jsx — the long-game retention surface. Every motivator
-// first-class and inspectable, the daily check-in rewarded with a visible mood
-// trajectory, and milestones celebrated with calm, brand-coherent icons (never
-// variable/loot — fixed, pre-announced thresholds). (Shell route.)
+// src/screens/Progress.jsx — the long-game surface, rebuilt around a real
+// month calendar instead of a legend-gated heatmap. The order follows what
+// recovery actually needs: continuity first, then pattern recognition (the
+// calendar), then reflections, then earned progress — with the finance-style
+// totals kept as progressive disclosure so a day-1 user never meets a wall of
+// empty metric cards. (Shell route.)
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { useProfile, useStats, useStore, useCards } from "../app/hooks.js";
-import { heatmap, localDayKey } from "../app/selectors.js";
+import { buildDays, dayLabel } from "../app/selectors.js";
+import { currentMonth, shiftMonth, compareMonth, firstActivityMonth } from "../app/calendar.js";
 import { money, moneyEquivalents, currencySymbol } from "../app/format.js";
 import { useReducedMotion } from "../app/motion.js";
-import { Counter, Sparkline, MOODS } from "../components/ui.jsx";
-import { StatusLegend, STATUS } from "../components/status.jsx";
+import { Counter, Sparkline, MOODS, Sheet } from "../components/ui.jsx";
+import { StatusLegend } from "../components/status.jsx";
+import MonthCalendar from "../components/MonthCalendar.jsx";
+import DayDetail from "../components/DayDetail.jsx";
 
-const TILE = {
-  clear: "var(--color-jade)",
-  frozen: "var(--color-moonstone)", // protected / planned night (its own state now)
-  drank: "var(--color-slate)", // neutral grey, never red
-  rest: "var(--color-sage)", // grey-blue "checked in"
-  none: "rgba(244,241,232,0.06)",
-};
-
-// Calm, fixed per-milestone icons — a quiet sense of seasons passing, not loot.
 const STREAK_ICON = { 3: "🌱", 7: "🌿", 14: "🌳", 30: "⛰️", 60: "🌠", 100: "🏔️" };
 function milestoneIcon(c) {
   const key = String(c.key || "");
@@ -28,66 +26,97 @@ function milestoneIcon(c) {
 }
 
 export default function Progress() {
+  const navigate = useNavigate();
   const profile = useProfile();
   const s = useStats();
   const state = useStore();
   const cards = useCards();
   const reduced = useReducedMotion();
-  const cells = heatmap(state, 84);
-  const todayKey = localDayKey(Date.now());
 
+  const now = Date.now();
+  const daysMap = useMemo(() => buildDays(state.events || [], now), [state.events, now]);
+  const [month, setMonth] = useState(() => currentMonth(now));
+  const [sel, setSel] = useState(null); // selected day cell
+
+  const cur = currentMonth(now);
+  const first = firstActivityMonth(state.events || [], now);
+  const canPrev = compareMonth(month, first) > 0;
+  const canNext = compareMonth(month, cur) < 0;
+  const goPrev = () => canPrev && setMonth((m) => shiftMonth(m.year, m.monthIndex, -1));
+  const goNext = () => canNext && setMonth((m) => shiftMonth(m.year, m.monthIndex, 1));
+
+  const onLog = (path, dayKey) => {
+    setSel(null);
+    navigate(path, { state: { forDay: dayKey } });
+  };
+
+  // Continuity headline — the single most important thing on this screen.
+  const continuity = s.isAbstinence
+    ? { big: s.soberDays, unit: s.soberDays === 1 ? "day alcohol-free" : "days alcohol-free", best: s.bestSoberRun }
+    : { big: s.currentClearStreak, unit: s.currentClearStreak === 1 ? "alcohol-free night in a row" : "alcohol-free nights in a row", best: s.bestClearStreak };
+
+  // Mood reflections.
+  const moodPts = s.clarityTrend.filter((d) => d.mood != null);
+  const latestMood = moodPts.length ? MOODS.find((m) => m.v === moodPts[moodPts.length - 1].mood) : null;
+  const moodSummary =
+    moodPts.length < 2 ? "Not enough check-ins yet to show a trend." : `Mood over ${moodPts.length} days; most recently ${latestMood?.label || "logged"}.`;
+
+  // Cravings proof (only once it has earned its place).
   const urges = (state.events || []).filter((e) => e.type === "urge_surf" && e.payload?.outcome === "made_it");
-  const avgDrop =
-    urges.length > 0
-      ? (urges.reduce((a, e) => a + (Number(e.payload.before) - Number(e.payload.after)), 0) / urges.length).toFixed(1)
-      : null;
+  const avgDrop = urges.length > 0 ? (urges.reduce((a, e) => a + (Number(e.payload.before) - Number(e.payload.after)), 0) / urges.length).toFixed(1) : null;
 
+  // Progressive disclosure: the finance-style totals only appear once there's
+  // something real to show. Until then a warm, forward-looking panel instead.
+  const meaningful = s.clearNights + s.drinkNights >= 3 || s.moneyKept > 0 || s.urgesSurfed > 0;
   const goalAmt = profile.rewardGoal?.amount || 10000;
   const goalPct = Math.min(100, (s.moneyKept / goalAmt) * 100);
   const equiv = moneyEquivalents(s.moneyKept, profile.currency)[0];
 
-  // Mood trend (rewards the daily check-in) + a real text alternative.
-  const moodPts = s.clarityTrend.filter((d) => d.mood != null);
-  const latestMood = moodPts.length ? MOODS.find((m) => m.v === moodPts[moodPts.length - 1].mood) : null;
-  const moodSummary =
-    moodPts.length < 2
-      ? "Not enough check-ins yet to show a trend."
-      : `Mood over ${moodPts.length} days; most recently ${latestMood?.label || "logged"}.`;
-
   return (
-    <div className="pt-3 pb-4">
+    <div className="pt-3 pb-4 space-y-4">
       <Reveal reduced={reduced} i={0}>
-        <h1 className="font-display text-2xl text-pearl text-center mb-1">Your progress</h1>
-        <p className="text-center text-xs text-pearl-faint mb-4">Your last 12 weeks. Each square is a night.</p>
+        <h1 className="font-display text-2xl text-pearl text-center">Your progress</h1>
       </Reveal>
 
-      {/* heatmap */}
+      {/* 1 — continuity, front and centre */}
       <Reveal reduced={reduced} i={1}>
-        <div className="glass rounded-3xl p-4" role="img" aria-label={`Last 12 weeks of nights. ${s.clearNights} alcohol-free, ${s.drinkNights} with a drink.`}>
-          <div className="grid gap-1.5 justify-center" style={{ gridTemplateRows: "repeat(7, minmax(0,1fr))", gridAutoFlow: "column" }}>
-            {cells.map((c) => {
-              const isToday = c.day === todayKey;
-              return (
-                <div
-                  key={c.day}
-                  title={`${c.day} · ${STATUS[c.status]?.label || c.status}`}
-                  className="h-3.5 w-3.5 rounded-[4px]"
-                  style={{
-                    background: TILE[c.status],
-                    outline: isToday ? "1.5px solid var(--color-focus)" : "none",
-                    outlineOffset: "1px",
-                  }}
-                />
-              );
-            })}
+        <div className="glass-strong rounded-3xl p-5 text-center">
+          <div className="font-display text-5xl text-pearl tnum leading-none">
+            <Counter value={continuity.big} />
           </div>
-          <StatusLegend className="mt-3" />
+          <div className="text-pearl-soft text-sm mt-2">{continuity.unit}</div>
+          {continuity.best > continuity.big && (
+            <div className="text-pearl-faint text-xs mt-1">
+              best so far · <span className="tnum">{continuity.best}</span> {continuity.best === 1 ? "day" : "days"}
+            </div>
+          )}
+          {continuity.big === 0 && continuity.best > 0 && (
+            <div className="text-jade text-sm mt-2">A fresh start today — your history is all still here.</div>
+          )}
         </div>
       </Reveal>
 
-      {/* mood trend */}
+      {/* 2 — the calendar: month context + tap-to-inspect */}
       <Reveal reduced={reduced} i={2}>
-        <div className="glass rounded-3xl p-5 mt-4">
+        <MonthCalendar
+          year={month.year}
+          monthIndex={month.monthIndex}
+          daysMap={daysMap}
+          now={now}
+          selectedKey={sel?.dayKey}
+          onSelectDay={setSel}
+          onPrev={goPrev}
+          onNext={goNext}
+          canPrev={canPrev}
+          canNext={canNext}
+        />
+        <p className="text-center text-[11px] text-pearl-faint mt-2">Tap any day for its story — or to fill in a night you missed.</p>
+        <StatusLegend className="mt-2" />
+      </Reveal>
+
+      {/* 3 — reflections (mood trend) */}
+      <Reveal reduced={reduced} i={3}>
+        <div className="glass rounded-3xl p-5">
           <div className="flex items-center justify-between">
             <span className="text-sm text-pearl-soft">How you've been feeling</span>
             {latestMood && <span className="text-lg" aria-hidden>{latestMood.face}</span>}
@@ -95,57 +124,73 @@ export default function Progress() {
           <div className="mt-3">
             <Sparkline data={s.clarityTrend} ariaLabel={moodSummary} />
           </div>
-          <p className="text-[11px] text-pearl-faint mt-2">{moodPts.length >= 2 ? "Last 30 days of check-ins." : "Tap a face on Home each day to grow this."}</p>
+          <p className="text-[11px] text-pearl-faint mt-2">
+            {moodPts.length >= 2 ? "Last 30 days of check-ins." : "Tap a face on Home each day to grow this."}
+          </p>
         </div>
       </Reveal>
 
-      {/* lifetime totals */}
-      <Reveal reduced={reduced} i={3}>
-        <div className="flex items-center justify-between mt-4 mb-2 px-1">
-          <h2 className="text-pearl font-medium">Lifetime</h2>
-          <span className="text-[11px] text-jade rounded-full bg-jade/10 px-2.5 py-1">these never go down</span>
-        </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          <Big label="Money kept" accent="text-jade" value={<Counter value={s.moneyKept} prefix={currencySymbol(profile.currency)} />} />
-          <Big label="Drinks avoided" accent="text-moonstone" value={<Counter value={s.drinksAvoided} />} />
-          <Big label="Cravings beaten" accent="text-jade" value={<Counter value={s.urgesSurfed} />} />
-          <Big label={s.isAbstinence ? "Longest sober run" : "Longest streak"} accent="text-pearl" value={<Counter value={s.bestPrimaryStreak} suffix=" days" />} />
-        </div>
-      </Reveal>
+      {/* 4 — earned progress (progressive disclosure) */}
+      {meaningful ? (
+        <>
+          <Reveal reduced={reduced} i={4}>
+            <div className="flex items-center justify-between mb-1 px-1">
+              <h2 className="text-pearl font-medium">What you've kept</h2>
+              <span className="text-[11px] text-jade rounded-full bg-jade/10 px-2.5 py-1">these never go down</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <Big label="Money kept" accent="text-jade" value={<Counter value={s.moneyKept} prefix={currencySymbol(profile.currency)} />} />
+              <Big label="Drinks avoided" accent="text-moonstone" value={<Counter value={s.drinksAvoided} />} />
+              <Big label="Cravings beaten" accent="text-jade" value={<Counter value={s.urgesSurfed} />} />
+              <Big label={s.isAbstinence ? "Longest sober run" : "Longest streak"} accent="text-pearl" value={<Counter value={s.bestPrimaryStreak} suffix=" days" />} />
+            </div>
+          </Reveal>
 
-      {/* money goal thermometer */}
-      <Reveal reduced={reduced} i={4}>
-        <div className="glass rounded-3xl p-5 mt-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-pearl-soft">Toward {profile.rewardGoal?.label || "your reward"}</span>
-            <span className="tnum text-sm text-jade">{money(s.moneyKept, profile.currency)} / {money(goalAmt, profile.currency)}</span>
-          </div>
-          <div className="mt-2 h-3 rounded-full bg-white/10 overflow-hidden">
-            <div className="h-full rounded-full" style={{ width: `${goalPct}%`, background: "var(--color-jade)", transition: "width 0.6s ease" }} />
-          </div>
-          {equiv && <p className="text-xs text-pearl-faint mt-2">That's about {equiv}. 😌</p>}
-        </div>
-      </Reveal>
+          {s.moneyKept > 0 && (
+            <Reveal reduced={reduced} i={5}>
+              <div className="glass rounded-3xl p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-pearl-soft">Toward {profile.rewardGoal?.label || "your reward"}</span>
+                  <span className="tnum text-sm text-jade">{money(s.moneyKept, profile.currency)} / {money(goalAmt, profile.currency)}</span>
+                </div>
+                <div className="mt-2 h-3 rounded-full bg-white/10 overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${goalPct}%`, background: "var(--color-jade)", transition: "width 0.6s ease" }} />
+                </div>
+                {equiv && <p className="text-xs text-pearl-faint mt-2">That's about {equiv}. 😌</p>}
+              </div>
+            </Reveal>
+          )}
 
-      {/* urge proof */}
-      {avgDrop != null && (
-        <Reveal reduced={reduced} i={5}>
-          <div className="glass rounded-3xl p-5 mt-3">
-            <div className="text-sm text-pearl-soft">Getting through cravings works</div>
-            <p className="text-pearl mt-1">
-              On average your cravings dropped <span className="text-jade font-semibold tnum">{avgDrop} points</span> after you used the calming tool — proven on your own data.
+          {avgDrop != null && (
+            <Reveal reduced={reduced} i={6}>
+              <div className="glass rounded-3xl p-5">
+                <div className="text-sm text-pearl-soft">Getting through cravings works</div>
+                <p className="text-pearl mt-1">
+                  On average your cravings dropped <span className="text-jade font-semibold tnum">{avgDrop} points</span> after the calming tool — proven on your own data.
+                </p>
+              </div>
+            </Reveal>
+          )}
+        </>
+      ) : (
+        <Reveal reduced={reduced} i={4}>
+          <div className="glass rounded-3xl p-5 text-center">
+            <div className="text-3xl mb-1" aria-hidden>🌱</div>
+            <div className="text-pearl font-medium">Your numbers grow here</div>
+            <p className="text-sm text-pearl-soft mt-1">
+              Money kept, drinks avoided and your longest run will fill in as you log nights. Nothing to prove yet — just keep showing up.
             </p>
           </div>
         </Reveal>
       )}
 
-      {/* milestone badges */}
-      <Reveal reduced={reduced} i={6}>
-        <div className="mt-4">
-          <h2 className="text-pearl font-medium px-1 mb-2">Milestone badges {cards.length > 0 && <span className="text-pearl-faint text-sm">({cards.length})</span>}</h2>
+      {/* 5 — milestones (forward-looking, always) */}
+      <Reveal reduced={reduced} i={7}>
+        <div>
+          <h2 className="text-pearl font-medium px-1 mb-2">Milestones {cards.length > 0 && <span className="text-pearl-faint text-sm">({cards.length})</span>}</h2>
           {cards.length === 0 ? (
             <div className="glass rounded-3xl p-5 text-sm text-pearl-faint text-center">
-              Earn a badge each time you hit a milestone — at 3, 7, 14, 30, 60 and 100 nights, and at each money goal. Known in advance, never random. Your first unlocks at 3 alcohol-free nights.
+              A quiet badge marks each milestone — 3, 7, 14, 30, 60 and 100 nights, and every money goal. Known in advance, never random. Your first is just 3 alcohol-free nights away.
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2.5">
@@ -160,11 +205,25 @@ export default function Progress() {
           )}
         </div>
       </Reveal>
+
+      {/* selected-day detail */}
+      <Sheet open={!!sel} onClose={() => setSel(null)} title={sel ? dayLabel(sel.dayKey) : ""}>
+        {sel && (
+          <DayDetail
+            day={sel}
+            currency={profile.currency}
+            onLog={onLog}
+            onDecide={() => {
+              setSel(null);
+              navigate("/crossroads");
+            }}
+          />
+        )}
+      </Sheet>
     </div>
   );
 }
 
-// Calm, reduced-motion-safe staggered reveal.
 function Reveal({ children, i = 0, reduced, className }) {
   if (reduced) return <div className={className}>{children}</div>;
   return (

@@ -39,11 +39,13 @@ export const SPRING = { type: "spring", stiffness: 130, damping: 23, mass: 1 };
 /** Gentle page transition (cross-fade + small y-rise). */
 export function pageTransition(reduced) {
   if (reduced) {
+    // True reduced motion: mount at the final state, no fade at all. (`initial:
+    // false` tells Framer to skip the entry animation entirely.)
     return {
-      initial: { opacity: 0 },
+      initial: false,
       animate: { opacity: 1 },
-      exit: { opacity: 0 },
-      transition: { duration: 0.15 },
+      exit: { opacity: 1 },
+      transition: { duration: 0 },
     };
   }
   return {

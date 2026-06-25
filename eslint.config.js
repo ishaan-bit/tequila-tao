@@ -6,7 +6,11 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'public/sw.js']),
+  // `android/` holds the Capacitor native project; `cap sync` copies the built
+  // web bundle into android/app/src/main/assets — those are generated artifacts,
+  // never lint them (they were turning `npm run lint` red with hundreds of
+  // false positives from minified vendor code).
+  globalIgnores(['dist', 'public/sw.js', 'android', 'coverage']),
   {
     files: ['**/*.{js,jsx}'],
     plugins: { react },

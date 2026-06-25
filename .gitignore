@@ -20,6 +20,7 @@ dist-ssr
 *.keystore
 android/key.properties
 android/keystore.b64
+.secrets-local/
 
 # Editor directories and files
 .vscode/*

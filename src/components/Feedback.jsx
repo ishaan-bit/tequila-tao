@@ -15,8 +15,7 @@ export function Toast({ show, children, tone = "jade" }) {
     <AnimatePresence>
       {show && (
         <motion.div
-          className="fixed left-1/2 -translate-x-1/2 z-[60] px-4 w-full max-w-sm"
-          style={{ bottom: "calc(var(--safe-bottom) + 5.5rem)" }}
+          className="fixed above-nav left-1/2 -translate-x-1/2 z-[60] px-4 w-full max-w-sm"
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 18 }}

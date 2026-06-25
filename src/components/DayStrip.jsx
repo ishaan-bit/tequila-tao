@@ -9,8 +9,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { dayLabel } from "../app/selectors.js";
 import { StatusMark, StatusLegend, STATUS } from "./status.jsx";
-import { MOODS } from "./ui.jsx";
-import { Button, Sheet } from "./ui.jsx";
+import { Sheet } from "./ui.jsx";
+import DayDetail from "./DayDetail.jsx";
 
 function weekdayInitial(dayKey) {
   const [y, m, d] = dayKey.split("-").map(Number);
@@ -20,7 +20,7 @@ function dayNum(dayKey) {
   return Number(dayKey.split("-")[2]);
 }
 
-export default function DayStrip({ days = [], lastLoggedDay = null }) {
+export default function DayStrip({ days = [], lastLoggedDay = null, currency = "INR" }) {
   const navigate = useNavigate();
   const railRef = useRef(null);
   const cellRefs = useRef([]);
@@ -94,7 +94,17 @@ export default function DayStrip({ days = [], lastLoggedDay = null }) {
       </div>
 
       <Sheet open={!!sel} onClose={() => setSel(null)} title={sel ? dayLabel(sel.day) : ""}>
-        {sel && <Inspector day={sel} onLog={logFor} onClose={() => setSel(null)} navigate={navigate} />}
+        {sel && (
+          <DayDetail
+            day={{ ...sel, dayKey: sel.day, isFuture: false }}
+            currency={currency}
+            onLog={logFor}
+            onDecide={() => {
+              setSel(null);
+              navigate("/crossroads");
+            }}
+          />
+        )}
       </Sheet>
     </div>
   );
@@ -117,58 +127,3 @@ function DayMark({ status, today, pop }) {
   );
 }
 
-function Inspector({ day, onLog, onClose, navigate }) {
-  const meta = STATUS[day.status] || STATUS.none;
-  const logged = day.status !== "none";
-  const mood = day.mood != null ? MOODS.find((m) => m.v === day.mood) : null;
-
-  return (
-    <div className="space-y-4">
-      {logged ? (
-        <div className="flex items-start gap-3">
-          <StatusMark status={day.status} size={40} />
-          <div className="flex-1">
-            <div className="text-pearl font-medium capitalize">{meta.label}</div>
-            <div className="text-sm text-pearl-soft mt-0.5">
-              {day.status === "clear" && day.moneySaved > 0 && `Kept money, ${day.drinksAvoided} drinks avoided.`}
-              {day.status === "clear" && day.moneySaved === 0 && "An alcohol-free night."}
-              {day.status === "drank" && `${day.drinks} ${day.drinks === 1 ? "drink" : "drinks"} logged — no shame, your history's safe.`}
-              {day.status === "frozen" && "A planned night — your streak stayed protected."}
-              {day.status === "rest" && "You checked in."}
-            </div>
-            {mood && <div className="text-sm text-pearl-faint mt-1">Felt: {mood.face} {mood.label}</div>}
-          </div>
-        </div>
-      ) : day.isToday ? (
-        <p className="text-sm text-pearl-soft">Tonight isn't decided yet. What's the plan?</p>
-      ) : (
-        <p className="text-sm text-pearl-soft">No entry for this night. Want to fill it in? It's never too late.</p>
-      )}
-
-      {day.isToday && !logged ? (
-        <div className="space-y-2.5">
-          <Button variant="primary" full onClick={() => { onClose(); navigate("/crossroads"); }}>
-            Decide tonight
-          </Button>
-          <div className="grid grid-cols-2 gap-2.5">
-            <Button variant="glass" onClick={() => onLog("/clarity", day.day)}>Alcohol-free</Button>
-            <Button variant="glass" onClick={() => onLog("/sendoff", day.day)}>I'm drinking</Button>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-2.5">
-          <Button variant="primary" onClick={() => onLog("/clarity", day.day)}>
-            {logged ? "Mark alcohol-free" : "Alcohol-free"}
-          </Button>
-          <Button variant="warm" onClick={() => onLog("/sendoff", day.day)}>
-            {logged ? "I drank" : "I drank"}
-          </Button>
-        </div>
-      )}
-
-      {logged && (
-        <p className="text-center text-[11px] text-pearl-faint">Re-logging just updates this night — it never double-counts.</p>
-      )}
-    </div>
-  );
-}

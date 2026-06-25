@@ -18,7 +18,7 @@ import { Button, Slider, Stepper, Chip, Sheet } from "../components/ui.jsx";
 import { Toast } from "../components/Feedback.jsx";
 
 const CURRENCIES = ["INR", "USD", "EUR", "GBP", "AUD", "CAD"];
-const APP_VERSION = "3.0.0";
+const APP_VERSION = "3.1.0";
 
 function Toggle({ checked, onChange, label, hint }) {
   return (

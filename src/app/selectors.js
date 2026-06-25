@@ -129,7 +129,7 @@ function startOfWeekTs(now = Date.now()) {
 // or drinks), and a day's mood is the latest by timestamp (stable even when an
 // imported log is out of insertion order). Malformed or future-dated events are
 // ignored so a clock jump or a corrupted backup can't poison the derived stats.
-function buildDays(events, now = Date.now()) {
+export function buildDays(events, now = Date.now()) {
   const days = new Map(); // dayKey -> outcome
   for (const e of events) {
     if (!e || !Number.isFinite(e.ts) || e.ts > now + DAY_MS) continue;
@@ -140,6 +140,7 @@ function buildDays(events, now = Date.now()) {
         drinkUnfrozen: false,
         drinkFrozen: false,
         reset: false,
+        soft: false, // a morning-after "soft landing" was logged this day
         any: false,
         mood: null,
         moodTs: -Infinity,
@@ -165,6 +166,7 @@ function buildDays(events, now = Date.now()) {
         o.drinkCount = num(e.payload?.drinks);
       }
     } else if (e.type === "streak_reset") o.reset = true;
+    if (e.type === "soft_landing") o.soft = true;
     if (e.type === "mood_checkin" || e.type === "soft_landing") {
       const m = e.payload?.mood;
       if (typeof m === "number" && e.ts >= o.moodTs) {
@@ -431,6 +433,7 @@ export function computeStats(state) {
   const drankToday = !!todayO?.drinkUnfrozen;
   const frozenToday = !!todayO?.drinkFrozen;
   const clearToday = !!todayO?.clear;
+  const softLandingToday = !!todayO?.soft;
   // Has tonight's drink-or-not decision already been logged? (A mood check-in
   // alone doesn't count — that's not a decision.)
   const decidedToday = drankToday || frozenToday || clearToday;
@@ -488,6 +491,7 @@ export function computeStats(state) {
     drankToday,
     frozenToday,
     clearToday,
+    softLandingToday,
     decidedToday,
     // freezes
     freezesRemaining,

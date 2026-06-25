@@ -28,15 +28,15 @@ export default function AppShell() {
       >
         Skip to content
       </a>
-      <main id="main" ref={mainRef} tabIndex={-1} className="flex-1 w-full max-w-xl mx-auto px-safe pb-28 pt-safe focus:outline-none">
+      <main id="main" ref={mainRef} tabIndex={-1} className="flex-1 w-full max-w-xl mx-auto px-safe pb-nav pt-safe focus:outline-none">
         <Outlet />
       </main>
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 glass-strong border-t border-white/10"
+        className="fixed inset-x-0 bottom-0 z-40 nav-surface"
         style={{ paddingBottom: "var(--safe-bottom)" }}
         aria-label="Primary"
       >
-        <div className="max-w-xl mx-auto grid grid-cols-3">
+        <div className="max-w-xl mx-auto grid grid-cols-3" style={{ minHeight: "var(--nav-h)" }}>
           {TABS.map((t) => (
             <NavLink
               key={t.to}

@@ -64,6 +64,21 @@ export function StatusMark({ status = "none", size = 30, today = false, classNam
   );
 }
 
+/** An inline pill — status mark + word — for day details and inline context.
+   Meaning is carried by the mark's shape+colour AND the label, never colour
+   alone. */
+export function StatusChip({ status = "none", className = "" }) {
+  const meta = STATUS[status] || STATUS.none;
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 pl-1 pr-3 py-1 text-xs font-medium text-pearl-soft ${className}`}
+    >
+      <StatusMark status={status} size={18} />
+      <span className="capitalize">{meta.label}</span>
+    </span>
+  );
+}
+
 /** Small swatch + glyph + label, for legends. */
 export function StatusLegend({ items = ["clear", "rest", "drank", "frozen", "none"], className = "" }) {
   return (

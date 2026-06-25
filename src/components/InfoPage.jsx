@@ -7,7 +7,7 @@ export default function InfoPage({ title, source }) {
     <Page>
       <div className="max-w-xl mx-auto">
         <BackHeader title={title} />
-        <div className="px-safe pb-16">
+        <div className="px-safe pb-gutter">
           <Markdown source={source} />
         </div>
       </div>

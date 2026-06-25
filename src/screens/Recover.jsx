@@ -86,7 +86,7 @@ export default function Recover() {
     <Page>
       <div className="max-w-md mx-auto">
         <BackHeader title="Morning-after recovery" onBack={() => navigate("/home")} />
-        <div className="px-safe pb-16">
+        <div className="px-safe pb-gutter">
           {/* header + ring */}
           <div className="flex items-center gap-4 glass rounded-3xl p-4 mb-3">
             <Ring pct={pct} />

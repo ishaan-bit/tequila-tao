@@ -74,6 +74,15 @@
   --surface-1: #161d33; /* cards (subtle lift) */
   --raise-top: #313c64; /* raised button top  */
   --raise-bot: #232c4c; /* raised button foot */
+
+  /* ---- Bottom navigation ----
+     --nav-h is the bar's CONTENT height (above the system inset). The scrollable
+     area reserves --nav-h + --safe-bottom so content never hides behind the bar,
+     and overlays anchor above it with the same sum. --nav-bg is a SOLID surface
+     (never translucent) so page content scrolling underneath can't bleed through
+     and make the tab labels unreadable. */
+  --nav-h: 3.75rem;
+  --nav-bg: #0d1324;
 }
 
 * {
@@ -156,6 +165,25 @@ body::before {
 }
 .inset-safe-bottom {
   bottom: var(--safe-bottom);
+}
+
+/* Reserve room under the fixed bottom nav. The OLD bug was a flat `pb-28`
+   (112px) that did NOT compose with the device's bottom safe-area inset: on a
+   phone with gesture navigation (--safe-bottom ≈ 24–48px) the bar's real height
+   (content + inset) ate almost all of it and the last controls slid under the
+   bar. This adds the inset to the content height explicitly, so it's correct on
+   every device. */
+.pb-nav {
+  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 0.75rem);
+}
+/* Bottom gutter for full-screen flow pages (no bottom nav) — clears the system
+   gesture/nav inset under their final CTA. */
+.pb-gutter {
+  padding-bottom: calc(var(--safe-bottom) + 1.75rem);
+}
+/* Anchor for elements that float just above the bottom nav (toasts, undo bar). */
+.above-nav {
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + 0.75rem);
 }
 
 /* Numbers never jitter while animating */
@@ -326,6 +354,17 @@ button {
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.22), 0 16px 40px -18px rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+/* ---- Bottom nav surface: SOLID, never translucent ----
+   The bar must stay fully readable while the page scrolls beneath it. The old
+   nav used `.glass-strong` (translucent), so scrolling content showed through
+   and the tab labels became confusing to read. This is an opaque surface with a
+   crisp top hairline and a soft upward shadow that lifts it off the content. */
+.nav-surface {
+  background: var(--nav-bg);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 -10px 30px -14px rgba(0, 0, 0, 0.9), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
 }
 
 /* Where backdrop-filter is unsupported/disabled, translucent glass would read as

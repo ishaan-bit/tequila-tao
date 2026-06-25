@@ -22,7 +22,7 @@ export default function Crossroads() {
     <Page>
       <div className="max-w-md mx-auto">
         <BackHeader title="Tonight" onBack={() => navigate("/home")} />
-        <div className="px-safe pb-16 space-y-5">
+        <div className="px-safe pb-gutter space-y-5">
           {/* goal context — abstinence goals lead with where you are in the run */}
           {s.isAbstinence && (
             <div className="text-center text-sm text-pearl-soft">
@@ -81,11 +81,11 @@ export default function Crossroads() {
               </p>
             </button>
 
-            <div className="glass rounded-3xl p-5" style={{ borderColor: "rgba(224,150,47,0.35)" }}>
+            <div className="glass rounded-3xl p-5" style={{ borderColor: "rgba(224,150,47,0.22)" }}>
               <button onClick={() => setExpandDrink((v) => !v)} className="w-full text-left">
                 <div className="flex items-center justify-between">
                   <span className="font-display text-xl text-pearl">{s.isAbstinence ? "I'm having a drink" : "I'm going to drink"}</span>
-                  <span className="text-amber text-sm">{s.isAbstinence ? "log it honestly" : "drink mindfully"}</span>
+                  <span className="text-pearl-faint text-sm">{s.isAbstinence ? "log it honestly" : "no shame"}</span>
                 </div>
                 <p className="text-sm text-pearl-soft mt-1">
                   {s.isAbstinence
@@ -108,7 +108,7 @@ export default function Crossroads() {
                         <p className="text-xs text-jade text-center">Zero drinks? That's an alcohol-free night — we'll log it as the win it is.</p>
                       )}
                       <Button
-                        variant={drinks === 0 ? "primary" : "warm"}
+                        variant={drinks === 0 ? "primary" : "glass"}
                         full
                         onClick={() =>
                           drinks === 0

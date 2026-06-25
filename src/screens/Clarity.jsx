@@ -93,7 +93,7 @@ export default function Clarity() {
     <Page>
       <div className="max-w-md mx-auto">
         <BackHeader title="Log alcohol-free night" onBack={() => navigate(forDay ? "/home" : "/crossroads")} />
-        <div className="px-safe pb-16">
+        <div className="px-safe pb-gutter">
           <div className="grid place-items-center py-2">
             <YinYang
               yinPct={s.isAbstinence ? s.displayYinPct : done ? Math.min(95, s.yinPct + 6) : s.yinPct}
