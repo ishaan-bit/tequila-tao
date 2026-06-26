@@ -155,13 +155,34 @@ export async function restoreByCode(rawCode, mode = "replace") {
   return payload.data;
 }
 
-// ---------- push (web FCM) ----------
+// ---------- push ----------
+// Native (Android) push via @capacitor/push-notifications + FCM. The token
+// arrives asynchronously on the "registration" event, so we wire the listeners
+// once and persist the token (+ sync it to the registry) when it lands.
+let nativePushWired = false;
+async function registerNativePush() {
+  const { PushNotifications } = await import("@capacitor/push-notifications");
+  if (!nativePushWired) {
+    nativePushWired = true;
+    await PushNotifications.addListener("registration", (token) => {
+      set({ push: true, pushToken: token.value });
+      if (cloud.sync) syncNow();
+    });
+    await PushNotifications.addListener("registrationError", (err) => {
+      console.warn("[push] native registration error:", err?.error || err);
+    });
+  }
+  await PushNotifications.register();
+}
+
 export async function enablePush() {
   if (Capacitor.isNativePlatform()) {
-    // Native (Android) push needs @capacitor/push-notifications + google-services.json;
-    // wired separately once that file is in place. Record the intent for now.
+    const { PushNotifications } = await import("@capacitor/push-notifications");
+    let perm = await PushNotifications.checkPermissions();
+    if (perm.receive !== "granted") perm = await PushNotifications.requestPermissions();
+    if (perm.receive !== "granted") throw new Error("Notifications weren't allowed.");
+    await registerNativePush();
     set({ push: true });
-    if (cloud.sync) await syncNow();
     return { native: true };
   }
   if (!("Notification" in window) || !("serviceWorker" in navigator)) {
@@ -220,4 +241,7 @@ export function initCloud() {
     debounceT = setTimeout(syncNow, 4000);
   });
   if (cloud.sync) syncNow(); // launch heartbeat + catch-up backup
+  // Refresh the native push token on launch if push is enabled (FCM tokens can
+  // rotate); the "registration" listener persists the new value.
+  if (Capacitor.isNativePlatform() && cloud.push) registerNativePush().catch(() => {});
 }

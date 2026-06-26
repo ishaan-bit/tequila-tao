@@ -18,4 +18,4 @@ export const firebaseConfig = {
 // Project settings → Cloud Messaging → "Web Push certificates" → Generate key
 // pair, then paste the PUBLIC key here. While this is empty, web push-token
 // registration is skipped (the app still works; it just can't receive web push).
-export const VAPID_PUBLIC_KEY = "";
+export const VAPID_PUBLIC_KEY = "BHugJ5mNeRYyOy-jABCAlc4GuGZTOm5xR6lNO6KLfN6HGb1yG32K2U6_b6rvq8jpvv6fEvrVgZRGPYTf3FhMuo0";

@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "98857517217",
+    "project_id": "tequila-tao",
+    "storage_bucket": "tequila-tao.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:98857517217:android:e627d5554cd9af11d270e0",
+        "android_client_info": {
+          "package_name": "com.tequilatao.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "98857517217-ort25n9lf7hdch2t3ohhfvs394qcc7vg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6x4y5v1IFqjxqSuV87EDdB4_GRH14mEs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "98857517217-ort25n9lf7hdch2t3ohhfvs394qcc7vg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
