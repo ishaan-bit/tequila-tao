@@ -233,6 +233,38 @@ export function Segmented({ options, value, onChange, ariaLabel, className = "" 
   );
 }
 
+/* ---------------- SwitchTrack ----------------
+   The shared on/off switch VISUAL (presentational only — wrap it in a
+   role="switch" button that owns the click + aria-checked). Used by BOTH the
+   Settings rows and the first-run consent screen so the toggle looks identical
+   everywhere. The two states are made deliberately unmistakable: OFF = a dark,
+   recessed groove with the light knob parked LEFT; ON = a bright jade fill with
+   a dark knob slid RIGHT. Colour, knob-colour AND position all flip together,
+   so "is it on or off?" is never a guess (the old faint white-on-glass pill
+   was the thing that read as ambiguous). */
+export function SwitchTrack({ checked, className = "" }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "block shrink-0 w-[3.25rem] h-8 rounded-full p-1 border transition-colors duration-200",
+        checked
+          ? "bg-jade border-jade shadow-[0_4px_14px_-3px_rgba(94,201,138,0.7)]"
+          : "bg-ink/80 border-white/25 shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)]",
+        className
+      )}
+    >
+      <span
+        className={cn(
+          "block h-6 w-6 rounded-full transition-transform duration-200",
+          checked ? "translate-x-5 bg-ink" : "translate-x-0 bg-pearl"
+        )}
+        style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.5)" }}
+      />
+    </span>
+  );
+}
+
 /* ---------------- Animated number ---------------- */
 export function Counter({ value = 0, prefix = "", suffix = "", className = "", duration = 700 }) {
   const [display, setDisplay] = useState(value);

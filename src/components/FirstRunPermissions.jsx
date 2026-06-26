@@ -1,7 +1,7 @@
 // src/components/FirstRunPermissions.jsx — the one-time, first-run consent
 // screen for the two things that need the user's say-so before they help:
-//   • Reminders & nudges (a device notification permission) — recommended ON.
-//   • Cloud backup & sync (anonymous, no account) — offered, OFF by default.
+//   • Reminders & nudges (a device notification permission) — default ON.
+//   • Cloud backup & sync (anonymous, no account) — default ON, easily turned off.
 //
 // Shown exactly once, the moment someone first lands in the app proper
 // (onboarded && !permsAsked), on BOTH web and native. The OS permission prompt
@@ -14,39 +14,29 @@ import { updateProfile, updateSettings, getState } from "../app/store.js";
 import { requestNotifPermission, syncReminder } from "../app/notifications.js";
 import { enableSync } from "../app/cloud.js";
 import { useReducedMotion } from "../app/motion.js";
-import { Button } from "./ui.jsx";
-import { IconBadge } from "./ui.jsx";
+import { Button, IconBadge, SwitchTrack } from "./ui.jsx";
 import { BellIcon, CloudIcon } from "./icons.jsx";
 
-function Toggle({ checked, onChange, label }) {
-  return (
-    <button
-      onClick={() => onChange(!checked)}
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      className={`shrink-0 w-[3.25rem] h-8 rounded-full p-1 border transition-colors duration-200 ${
-        checked ? "bg-jade border-jade shadow-[0_4px_12px_-4px_rgba(94,201,138,0.6)]" : "bg-white/15 border-white/30"
-      }`}
-    >
-      <span
-        className={`block h-6 w-6 rounded-full transition-transform duration-200 ${checked ? "translate-x-5 bg-ink" : "bg-pearl"}`}
-        style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.5)" }}
-      />
-    </button>
-  );
-}
-
+// One tappable consent row = a labelled switch. Uses the SAME SwitchTrack visual
+// as Settings (a dark recessed groove when off, a bright jade fill when on) so
+// the on/off state is unmistakable here too, and the whole row is the target.
 function Row({ icon, tone, title, sub, checked, onChange }) {
   return (
-    <div className="glass rounded-2xl p-4 flex items-start gap-3.5">
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={title}
+      onClick={() => onChange(!checked)}
+      className="w-full text-left glass rounded-2xl p-4 flex items-center gap-3.5"
+    >
       <IconBadge tone={tone}>{icon}</IconBadge>
-      <div className="flex-1 min-w-0">
-        <div className="text-pearl font-medium">{title}</div>
-        <p className="text-sm text-pearl-faint mt-0.5">{sub}</p>
-      </div>
-      <Toggle checked={checked} onChange={onChange} label={title} />
-    </div>
+      <span className="flex-1 min-w-0">
+        <span className="block text-pearl font-medium">{title}</span>
+        <span className="block text-sm text-pearl-faint mt-0.5">{sub}</span>
+      </span>
+      <SwitchTrack checked={checked} />
+    </button>
   );
 }
 
@@ -54,7 +44,7 @@ export default function FirstRunPermissions() {
   const profile = useProfile();
   const reduced = useReducedMotion();
   const [notif, setNotif] = useState(true); // recommended on
-  const [backup, setBackup] = useState(false); // offered, off by default
+  const [backup, setBackup] = useState(true); // on by default — saved & restorable
   const [busy, setBusy] = useState(false);
 
   if (!profile.onboarded || profile.permsAsked) return null;
@@ -120,7 +110,10 @@ export default function FirstRunPermissions() {
           </div>
 
           <p className="text-xs text-pearl-faint text-center mt-5 px-2">
-            Turning reminders on asks your device for notification permission. Nothing leaves your phone unless you switch on backup.
+            {notif ? "Turning reminders on asks your device for notification permission. " : ""}
+            {backup
+              ? "Backup is on, so your progress is saved to the cloud anonymously — turn it off above to keep everything only on this phone."
+              : "Nothing leaves your phone unless you switch backup on."}
           </p>
 
           <div className="mt-6 pb-safe">

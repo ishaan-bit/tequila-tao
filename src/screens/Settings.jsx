@@ -20,7 +20,7 @@ import { money } from "../app/format.js";
 import { useCloud, enableSync, disableSync, enablePush, disablePush, restoreByCode, deleteCloud } from "../app/cloud.js";
 import { syncReminder, remindersSupported } from "../app/notifications.js";
 import { APP_VERSION } from "../app/version.js";
-import { Button, Slider, Stepper, Chip, Sheet, Section, Segmented, ListRow } from "../components/ui.jsx";
+import { Button, Slider, Stepper, Chip, Sheet, Section, Segmented, ListRow, SwitchTrack } from "../components/ui.jsx";
 import { Toast } from "../components/Feedback.jsx";
 import {
   TargetIcon, SlidersIcon, BellIcon, SparkleIcon, DatabaseIcon, HeartIcon,
@@ -37,18 +37,7 @@ function Toggle({ checked, onChange, label, hint }) {
         <span className="block text-pearl">{label}</span>
         {hint && <span className="block text-xs text-pearl-faint">{hint}</span>}
       </span>
-      {/* knob is dark on the jade track (on) and light on the dark track (off):
-          high contrast in BOTH states — never black-on-black. */}
-      <span
-        className={`shrink-0 w-[3.25rem] h-8 rounded-full p-1 border transition-colors duration-200 ${
-          checked ? "bg-jade border-jade shadow-[0_4px_12px_-4px_rgba(94,201,138,0.6)]" : "bg-white/15 border-white/30"
-        }`}
-      >
-        <span
-          className={`block h-6 w-6 rounded-full transition-transform duration-200 ${checked ? "translate-x-5 bg-ink" : "bg-pearl"}`}
-          style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.5)" }}
-        />
-      </span>
+      <SwitchTrack checked={checked} />
     </button>
   );
 }
@@ -364,7 +353,7 @@ export default function Settings() {
 
       <Section title="Backup & sync" icon={<CloudIcon />} tone="focus">
         <p className="text-sm text-pearl-soft">
-          Off by default. Turn it on to back up your progress and restore it on a new phone — anonymously, with no name, email, or login.{" "}
+          Back up your progress and restore it on a new phone — anonymously, with no name, email, or login. Turn it off anytime.{" "}
           <button onClick={() => navigate("/privacy")} className="text-focus underline underline-offset-2">What's stored</button>.
         </p>
         <Toggle
