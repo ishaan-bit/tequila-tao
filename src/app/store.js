@@ -55,6 +55,7 @@ export function isPersistent() {
 export const DEFAULT_PROFILE = {
   onboarded: false,
   tourSeen: false, // first-launch how-to overlay (shown once on Home)
+  permsAsked: false, // first-run notifications + backup consent shown once
   intent: "cutback", // 'cutback' | 'break' | 'quit' — drives the whole experience
   goalStart: null, // ms timestamp the current goal began (anchors sober-day count)
   breakDays: 30, // length of a "take a break" challenge (only used when intent==='break')

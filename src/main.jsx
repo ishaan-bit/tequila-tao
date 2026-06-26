@@ -16,6 +16,7 @@ import "./index.css";
 import { useProfile } from "./app/hooks.js";
 import AppShell from "./components/AppShell.jsx";
 import AdaptiveTheme from "./components/AdaptiveTheme.jsx";
+import FirstRunPermissions from "./components/FirstRunPermissions.jsx";
 
 // Eager: the entry splash (tiny, instant first paint).
 import Threshold from "./screens/Threshold.jsx";
@@ -62,6 +63,9 @@ createRoot(document.getElementById("root")).render(
           motion. The in-app override is still handled by useReducedMotion. */}
       <MotionConfig reducedMotion="user">
       <AdaptiveTheme />
+      {/* One-time first-run consent for notifications + backup. Self-hides once
+          shown (onboarded && !permsAsked); overlays the app on first launch. */}
+      <FirstRunPermissions />
       <Suspense fallback={<Loading />}>
         <Routes>
           <Route path="/" element={<Threshold />} />
@@ -109,14 +113,23 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
 //  • initCloud — opt-in cloud backup/push. A no-op unless the user turned it on;
 //    importing it does NOT pull in the Firebase SDK (that's dynamic-imported only
 //    when sync actually runs), so non-sync users ship none of it.
-//  • syncReminder — the on-device daily reminder (installed app only; no-op on
-//    web). Only (re)scheduled for users who've finished onboarding, so a brand-new
-//    user isn't hit with a permission prompt before they've even set up.
+//  • syncReminder — the on-device daily check-in reminder + drink-limit nudge.
+//    Works on native (real OS schedules) AND web (Triggers where supported).
+//    Silent: it only (re)schedules if permission is already granted, so nobody
+//    is prompted on launch — the first-run consent screen owns the asking.
+//  • runWebCatchup — on browsers without background scheduling, posts a due
+//    reminder when the app is opened/re-focused. No-op on native.
 import { getState } from "./app/store.js";
 import { initCloud } from "./app/cloud.js";
-import { syncReminder } from "./app/notifications.js";
+import { syncReminder, runWebCatchup } from "./app/notifications.js";
 initCloud();
-if (getState().profile?.onboarded) syncReminder(getState().settings);
+if (getState().profile?.onboarded) {
+  syncReminder(getState().settings);
+  runWebCatchup();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") runWebCatchup();
+  });
+}
 
 // Native (Capacitor) shell only: render edge-to-edge with the status bar
 // overlaying the WebView and light icons over the dark canvas — consistent

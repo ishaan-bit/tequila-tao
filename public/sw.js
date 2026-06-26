@@ -2,7 +2,7 @@
    Keeps the app usable with no network. Deliberately does NOT precache the
    heavy /media or /sounds accents (they lazy-load and would blow storage quota
    on low-end devices). */
-const CACHE = "tt-shell-v3";
+const CACHE = "tt-shell-v4";
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();
@@ -14,6 +14,21 @@ self.addEventListener("install", (e) => {
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())
+  );
+});
+
+// Tapping a local reminder/nudge (daily check-in or drink-limit) focuses an
+// open tab or opens the app at Home. These notifications come from this SW
+// (Notification Triggers + the foreground catch-up); FCM push has its own SW.
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if ("focus" in c) return c.focus();
+      }
+      return self.clients.openWindow ? self.clients.openWindow("/home") : undefined;
+    })
   );
 });
 

@@ -134,7 +134,7 @@ export default function Settings() {
   // ---- daily reminder (on-device, everyone) ----
   const setReminder = (patch) => {
     const next = updateSettings(patch);
-    syncReminder(next); // (re)schedule on native; no-op on web
+    syncReminder(next, { request: true }); // (re)schedule on native + web; prompt if needed
   };
 
   // ---- opt-in cloud backup & sync ----
@@ -307,9 +307,11 @@ export default function Settings() {
           <input type="time" value={settings.reminderTime} disabled={settings.dailyReminder === false} onChange={(e) => setReminder({ reminderTime: e.target.value })} className="raised rounded-xl px-3 py-2 text-sm text-pearl [color-scheme:dark]" />
         </label>
         <div className="hairline" />
-        <Toggle checked={settings.drinkLimitNudge} onChange={(v) => updateSettings({ drinkLimitNudge: v })} label="Drink-limit nudge" hint="A gentle reminder on nights out" />
+        <Toggle checked={settings.drinkLimitNudge !== false} onChange={(v) => setReminder({ drinkLimitNudge: v })} label="Drink-limit nudge" hint="A gentle heads-up on likely nights out (Thu–Sat)" />
         <p className="text-xs text-pearl-faint">
-          {remindersSupported() ? "Reminders run on this device — no account needed." : "Reminders run in the installed app. On the web they're saved for when you install."}
+          {remindersSupported()
+            ? "Reminders run on this device — no account needed. The installed app delivers them most reliably."
+            : "This browser can't show reminders. Install the app to get them."}
         </p>
       </Section>
 

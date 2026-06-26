@@ -6,10 +6,11 @@
 // lapse) to avoid cue-reactivity.
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useProfile, useStats, useStore } from "../app/hooks.js";
+import { useProfile, useSettings, useStats, useStore } from "../app/hooks.js";
 import { addEvent, removeEvent } from "../app/store.js";
 import { currencySymbol } from "../app/format.js";
 import { localDayKey, dayKeyOffset, dayKeyToLogTs, dayLabel } from "../app/selectors.js";
+import { limitNudge } from "../app/reminders.js";
 import { tap } from "../app/haptics.js";
 import Page, { BackHeader } from "../components/Page.jsx";
 import LazyVideo from "../components/LazyVideo.jsx";
@@ -26,6 +27,7 @@ export default function Sendoff() {
   const navigate = useNavigate();
   const { state: navState } = useLocation();
   const profile = useProfile();
+  const settings = useSettings();
   const s = useStats();
   const store = useStore();
   const [drinks, setDrinks] = useState(navState?.drinks ?? profile.typicalSession ?? 3);
@@ -38,6 +40,8 @@ export default function Sendoff() {
 
   const canFreeze = s.freezesRemaining > 0;
   const isZero = Number(drinks) === 0;
+  // Gentle, non-shaming heads-up when the count is above the user's usual limit.
+  const overLimit = limitNudge(drinks, profile, settings);
 
   // Carried from Urge's "I'm choosing to drink" branch — logged here (deferred)
   // so abandoning this screen doesn't leave a phantom failed craving.
@@ -150,6 +154,12 @@ export default function Sendoff() {
               <div className="flex justify-center">
                 <Stepper value={drinks} min={0} max={20} label="drinks" onChange={setDrinks} />
               </div>
+              {overLimit && (
+                <div className="rounded-2xl p-3 text-sm flex items-start gap-2.5" style={{ background: "rgba(200,116,42,0.1)", border: "1px solid rgba(200,116,42,0.3)" }}>
+                  <span aria-hidden className="text-amber mt-0.5">↗</span>
+                  <span className="text-pearl-soft">{overLimit}</span>
+                </div>
+              )}
               {!isZero && (
                 <label className="block">
                   <span className="text-sm text-pearl-soft">Spend (optional)</span>

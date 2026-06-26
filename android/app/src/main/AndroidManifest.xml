@@ -32,4 +32,9 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Runtime notification permission (Android 13+) for the daily check-in
+         reminder, the drink-limit nudge, and opt-in push. The local- and push-
+         notification plugins also merge in the supporting permissions
+         (RECEIVE_BOOT_COMPLETED, SCHEDULE_EXACT_ALARM, VIBRATE). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>
