@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { sendPush } from '../api.js';
 
-// Reusable push-notification form.
-//   - For a single device: pass `uid`.
-//   - For broadcast: pass `broadcast` (adds a confirm step).
-export default function PushForm({ uid, broadcast, onToast }) {
+// Reusable push-notification form. Three target modes:
+//   - single device : pass `uid` (string).
+//   - filtered set   : pass `uids` (string[]) + `audienceLabel` (adds a confirm).
+//   - all devices    : pass `broadcast` (adds a confirm).
+export default function PushForm({ uid, uids, broadcast, audienceLabel, onToast }) {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -12,6 +13,8 @@ export default function PushForm({ uid, broadcast, onToast }) {
   const [error, setError] = useState(null);
   const [confirming, setConfirming] = useState(false);
 
+  const isMass = broadcast || (Array.isArray(uids) && uids.length > 0);
+  const audience = audienceLabel || 'every device';
   const canSend = title.trim() && body.trim() && !busy;
 
   async function doSend() {
@@ -21,7 +24,8 @@ export default function PushForm({ uid, broadcast, onToast }) {
     setConfirming(false);
     try {
       const res = await sendPush({
-        uid: broadcast ? undefined : uid,
+        uid: isMass ? undefined : uid,
+        uids: Array.isArray(uids) && uids.length ? uids : undefined,
         broadcast: broadcast ? true : undefined,
         title: title.trim(),
         body: body.trim(),
@@ -43,11 +47,8 @@ export default function PushForm({ uid, broadcast, onToast }) {
   function onSubmit(e) {
     e.preventDefault();
     if (!canSend) return;
-    if (broadcast) {
-      setConfirming(true);
-    } else {
-      doSend();
-    }
+    if (isMass) setConfirming(true);
+    else doSend();
   }
 
   return (
@@ -75,13 +76,13 @@ export default function PushForm({ uid, broadcast, onToast }) {
         <div className="mt8">
           <button
             type="submit"
-            className={broadcast ? 'danger' : 'primary'}
+            className={isMass ? 'danger' : 'primary'}
             disabled={!canSend}
           >
             {busy
               ? 'Sending…'
-              : broadcast
-              ? 'Broadcast to all devices'
+              : isMass
+              ? `Send to ${audience}`
               : 'Send push to this device'}
           </button>
         </div>
@@ -89,16 +90,11 @@ export default function PushForm({ uid, broadcast, onToast }) {
 
       {confirming && (
         <div className="confirm-box">
-          This sends a push to <strong>every device</strong> with notifications
+          This sends a push to <strong>{audience}</strong> with notifications
           enabled. Continue?
           <div className="actions">
-            <button
-              type="button"
-              className="danger"
-              disabled={busy}
-              onClick={doSend}
-            >
-              {busy ? 'Sending…' : 'Yes, broadcast'}
+            <button type="button" className="danger" disabled={busy} onClick={doSend}>
+              {busy ? 'Sending…' : 'Yes, send'}
             </button>
             <button
               type="button"

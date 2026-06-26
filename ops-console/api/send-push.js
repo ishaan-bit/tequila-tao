@@ -1,8 +1,9 @@
 // POST /api/send-push
-// Body: { uid?: string, broadcast?: boolean, title: string, body: string }
+// Body: { uid?: string, uids?: string[], broadcast?: boolean, title, body }
 //
 // Verify admin → resolve target tokens:
 //   - uid       : read that one device's pushToken.
+//   - uids      : read pushTokens for that specific (filtered) set of devices.
 //   - broadcast : gather all non-null pushTokens from `devices` (cap 500).
 // Send via admin.messaging().sendEach([...]) and report per-token results,
 // surfacing invalid/expired tokens so the admin can see them.
@@ -28,6 +29,9 @@ export default async function handler(req, res) {
 
   const body = await readJsonBody(req);
   const { uid, broadcast } = body || {};
+  const uids = Array.isArray(body && body.uids)
+    ? body.uids.filter((u) => typeof u === 'string' && u)
+    : null;
   const title = (body && body.title ? String(body.title) : '').trim();
   const messageBody = (body && body.body ? String(body.body) : '').trim();
 
@@ -35,10 +39,14 @@ export default async function handler(req, res) {
     res.status(400).json({ error: 'Both "title" and "body" are required' });
     return;
   }
-  if (!uid && !broadcast) {
+  if (!uid && !broadcast && !(uids && uids.length)) {
     res
       .status(400)
-      .json({ error: 'Provide either "uid" or "broadcast: true"' });
+      .json({ error: 'Provide "uid", "uids", or "broadcast: true"' });
+    return;
+  }
+  if (uids && uids.length > 500) {
+    res.status(400).json({ error: 'Too many uids (max 500 per send)' });
     return;
   }
 
@@ -56,6 +64,16 @@ export default async function handler(req, res) {
         .limit(500)
         .get();
       for (const doc of snap.docs) {
+        const t = doc.data() && doc.data().pushToken;
+        if (t) targets.push({ token: t, uid: doc.id });
+      }
+    } else if (uids && uids.length) {
+      // Filtered audience: fetch each named device and collect its token.
+      const snaps = await db.getAll(
+        ...uids.map((u) => db.collection('devices').doc(u))
+      );
+      for (const doc of snaps) {
+        if (!doc.exists) continue;
         const t = doc.data() && doc.data().pushToken;
         if (t) targets.push({ token: t, uid: doc.id });
       }

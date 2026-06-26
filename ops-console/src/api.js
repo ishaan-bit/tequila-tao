@@ -43,7 +43,7 @@ export async function fetchBackup(uid) {
   return parse(res);
 }
 
-export async function sendPush({ uid, broadcast, title, body }) {
+export async function sendPush({ uid, uids, broadcast, title, body }) {
   const headers = {
     ...(await authHeaders()),
     'Content-Type': 'application/json',
@@ -51,7 +51,7 @@ export async function sendPush({ uid, broadcast, title, body }) {
   const res = await fetch('/api/send-push', {
     method: 'POST',
     headers,
-    body: JSON.stringify({ uid, broadcast, title, body }),
+    body: JSON.stringify({ uid, uids, broadcast, title, body }),
   });
   return parse(res);
 }
