@@ -63,17 +63,20 @@
 
   /* ---- State-adaptive ambience (live-set by AdaptiveTheme.jsx) ----
      These drive the immersive background so the whole app shifts with the time
-     of day and the active goal. Defaults below = an evening / cutback mood. */
-  --bg-base: #090c17;
-  --glow-1: rgba(94, 201, 138, 0.14); /* time-of-day glow (top-left)  */
-  --glow-2: rgba(127, 179, 255, 0.16); /* goal glow (top-right)        */
-  --glow-3: rgba(122, 15, 43, 0.28); /* warmth at the foot            */
+     of day and the active goal. Defaults below = an evening / cutback mood.
+     The alphas are deliberately generous: the aurora must be *present* enough
+     that the frosted-glass surfaces have real colour to refract (a too-faint
+     field is what made earlier cards read as flat black). */
+  --bg-base: #080b16;
+  --glow-1: rgba(94, 201, 138, 0.20); /* time-of-day glow (top-left)  */
+  --glow-2: rgba(127, 179, 255, 0.22); /* goal glow (top-right)        */
+  --glow-3: rgba(122, 15, 43, 0.34); /* warmth at the foot            */
   --accent: #5ec98a; /* action accent (kept jade for brand) */
 
   /* ---- Elevation surfaces (solid, clearly stepped above the base) ---- */
   --surface-1: #161d33; /* cards (subtle lift) */
-  --raise-top: #313c64; /* raised button top  */
-  --raise-bot: #232c4c; /* raised button foot */
+  --raise-top: #38426e; /* raised button top  */
+  --raise-bot: #242d50; /* raised button foot */
 
   /* ---- Bottom navigation ----
      --nav-h is the bar's CONTENT height (above the system inset). The scrollable
@@ -81,8 +84,11 @@
      and overlays anchor above it with the same sum. --nav-bg is a SOLID surface
      (never translucent) so page content scrolling underneath can't bleed through
      and make the tab labels unreadable. */
-  --nav-h: 3.75rem;
+  --nav-h: 4rem;
   --nav-bg: #0d1324;
+  /* The floating nav clears the system inset and leaves a small breathing gap
+     below the rounded bar. Content reserves the bar height + that gap + inset. */
+  --nav-gap: 0.5rem;
 }
 
 * {
@@ -125,13 +131,26 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(38% 32% at 18% 14%, var(--glow-1), transparent 62%),
-    radial-gradient(42% 38% at 86% 16%, var(--glow-2), transparent 62%),
-    radial-gradient(70% 55% at 50% 116%, var(--glow-3), transparent 60%),
-    radial-gradient(120% 90% at 50% -10%, rgba(40, 52, 96, 0.35), transparent 60%);
+    radial-gradient(44% 36% at 16% 10%, var(--glow-1), transparent 60%),
+    radial-gradient(48% 40% at 86% 13%, var(--glow-2), transparent 62%),
+    radial-gradient(82% 60% at 50% 120%, var(--glow-3), transparent 62%),
+    radial-gradient(60% 45% at 78% 78%, rgba(96, 116, 210, 0.12), transparent 60%),
+    radial-gradient(150% 110% at 50% -22%, rgba(52, 66, 124, 0.5), transparent 58%),
+    linear-gradient(180deg, #0c1226 0%, #0a0e1e 48%, #07090f 100%);
   background-color: var(--bg-base);
-  animation: bg-drift 42s ease-in-out infinite alternate;
+  animation: bg-drift 48s ease-in-out infinite alternate;
   transition: background 1.2s ease;
+}
+/* A soft top→bottom vignette adds quiet depth at the edges so the living field
+   never reads as a flat fill. Static (no animation), so it costs nothing. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 50% 0%, transparent 55%, rgba(4, 6, 12, 0.55) 100%);
 }
 @keyframes bg-drift {
   from {
@@ -174,7 +193,7 @@ body::before {
    bar. This adds the inset to the content height explicitly, so it's correct on
    every device. */
 .pb-nav {
-  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 0.75rem);
+  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + var(--nav-gap) + 1rem);
 }
 /* Bottom gutter for full-screen flow pages (no bottom nav) — clears the system
    gesture/nav inset under their final CTA. */
@@ -183,7 +202,7 @@ body::before {
 }
 /* Anchor for elements that float just above the bottom nav (toasts, undo bar). */
 .above-nav {
-  bottom: calc(var(--nav-h) + var(--safe-bottom) + 0.75rem);
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + var(--nav-gap) + 1rem);
 }
 
 /* Numbers never jitter while animating */
@@ -337,42 +356,74 @@ button {
   background: transparent;
 }
 
-/* ---- Glass: luminous frosted panels ----
-   The fix for "black on black": a light TOP-EDGE highlight (inset shadow) that
-   always catches light regardless of the backdrop, a gentle top-down sheen, a
-   clear border, and saturate() so the colourful field behind shows through. */
+/* ---- Glass: luminous frosted indigo panels ----
+   The durable fix for "flat black squares": each surface carries its OWN tinted
+   indigo body (a real, clearly-lighter material) under a white sheen, so it
+   reads as a panel even before the backdrop refracts through. On top of that:
+   a bright top-edge highlight that always catches light, a hairline border, a
+   layered soft shadow for genuine elevation, and saturate() so the aurora field
+   glows through the blur. Two stacked layers = sheen over indigo body. */
 .glass {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.055));
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.16), 0 10px 28px -16px rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.014)),
+    linear-gradient(165deg, rgba(46, 56, 98, 0.66), rgba(24, 30, 56, 0.62));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-top-color: rgba(255, 255, 255, 0.2);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
+    0 16px 38px -22px rgba(0, 0, 0, 0.92),
+    0 4px 12px -10px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(18px) saturate(165%);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
 }
 .glass-strong {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.09));
-  border: 1px solid rgba(255, 255, 255, 0.26);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.22), 0 16px 40px -18px rgba(0, 0, 0, 0.8);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.03)),
+    linear-gradient(165deg, rgba(58, 70, 120, 0.76), rgba(28, 36, 66, 0.7));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.28);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.22),
+    0 26px 56px -26px rgba(0, 0, 0, 0.94),
+    0 6px 16px -10px rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+}
+
+/* ---- Bottom nav surface: a floating, rounded, near-opaque bar ----
+   The bar must stay fully readable while the page scrolls beneath it, so it's a
+   near-opaque indigo surface (not translucent glass) — but now it floats with a
+   margin, fully-rounded corners, a hairline border all the way around and a soft
+   ambient shadow, which reads far more modern than an edge-to-edge slab. */
+.nav-surface {
+  background: linear-gradient(180deg, rgba(22, 28, 52, 0.96), rgba(13, 19, 36, 0.97));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+    0 14px 36px -14px rgba(0, 0, 0, 0.92),
+    0 2px 8px -4px rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
 }
-
-/* ---- Bottom nav surface: SOLID, never translucent ----
-   The bar must stay fully readable while the page scrolls beneath it. The old
-   nav used `.glass-strong` (translucent), so scrolling content showed through
-   and the tab labels became confusing to read. This is an opaque surface with a
-   crisp top hairline and a soft upward shadow that lifts it off the content. */
-.nav-surface {
-  background: var(--nav-bg);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 -10px 30px -14px rgba(0, 0, 0, 0.9), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+/* The soft jade highlight that sits behind the active tab (animated by Framer's
+   layoutId in AppShell). A tinted, rounded blob — the modern "active pill". */
+.nav-pill {
+  background: linear-gradient(180deg, rgba(94, 201, 138, 0.22), rgba(94, 201, 138, 0.1));
+  border: 1px solid rgba(94, 201, 138, 0.3);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12), 0 4px 12px -6px rgba(94, 201, 138, 0.5);
 }
 
 /* Where backdrop-filter is unsupported/disabled, translucent glass would read as
    near-black — fall back to the solid elevation token so panels stay legible. */
 @supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
-  .glass,
+  .glass {
+    background: linear-gradient(165deg, #232c4c, #161d33);
+  }
   .glass-strong {
-    background: var(--surface-1);
+    background: linear-gradient(165deg, #2c3760, #1a2240);
+  }
+  .nav-surface {
+    background: var(--nav-bg);
   }
 }
 
@@ -381,7 +432,9 @@ button {
 @media (prefers-contrast: more) {
   .glass,
   .glass-strong,
-  .raised {
+  .raised,
+  .list-row,
+  .nav-surface {
     background: var(--surface-1);
     border-color: rgba(255, 255, 255, 0.55);
     backdrop-filter: none;
@@ -420,9 +473,13 @@ button {
    highlight so it always reads as a tappable, slightly 3-D control. */
 .raised {
   background: linear-gradient(180deg, var(--raise-top), var(--raise-bot));
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.18), 0 6px 16px -10px rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.26);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    0 8px 18px -12px rgba(0, 0, 0, 0.9);
   color: var(--color-pearl);
+  transition: filter 0.18s var(--ease-tao), box-shadow 0.18s var(--ease-tao);
 }
 .raised:hover {
   filter: brightness(1.12);
@@ -433,14 +490,127 @@ button {
 
 /* ---- Action buttons: vivid gradient fills with a glow halo ---- */
 .btn-primary {
-  background: linear-gradient(180deg, #74dca0, #46b074);
+  background: linear-gradient(180deg, #7fe2a8, #41ab6f);
   color: var(--color-ink);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.35), 0 10px 26px -10px rgba(94, 201, 138, 0.65);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.45),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.1),
+    0 12px 30px -10px rgba(94, 201, 138, 0.7),
+    0 2px 6px -3px rgba(0, 0, 0, 0.4);
 }
 .btn-warm {
-  background: linear-gradient(180deg, #f3b25e, #c47e22);
+  background: linear-gradient(180deg, #f5b765, #c47e22);
   color: var(--color-ink);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.35), 0 10px 26px -10px rgba(224, 150, 47, 0.6);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.45),
+    0 12px 30px -10px rgba(224, 150, 47, 0.62),
+    0 2px 6px -3px rgba(0, 0, 0, 0.4);
+}
+
+/* ---- List row: the modern replacement for "Label →" text links ----
+   A tappable shelf with a leading icon-badge, a title/sub block and a trailing
+   chevron. This is what kills the dated "underlined text + arrow" look in
+   Settings and elsewhere. Quiet by default, lifts on hover/press. */
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.7rem 0.8rem;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.012));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background-color 0.2s var(--ease-tao), border-color 0.2s var(--ease-tao), transform 0.14s var(--ease-tao);
+}
+.list-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.list-row:active {
+  transform: scale(0.99);
+}
+.list-row[data-tone="danger"] {
+  background: linear-gradient(180deg, rgba(255, 107, 94, 0.1), rgba(255, 107, 94, 0.03));
+  border-color: rgba(255, 107, 94, 0.24);
+}
+.list-row[data-tone="danger"]:hover {
+  background: rgba(255, 107, 94, 0.16);
+  border-color: rgba(255, 107, 94, 0.4);
+}
+
+/* ---- Icon badge: a small tinted rounded container for a leading glyph ----
+   The tint colour comes from --badge (set inline per row), so one class serves
+   every accent. The white sheen keeps it reading as a lit, tactile chip. */
+.icon-badge {
+  flex: none;
+  height: 2.5rem;
+  width: 2.5rem;
+  border-radius: 0.8rem;
+  display: grid;
+  place-items: center;
+  color: var(--badge, var(--color-pearl));
+  /* Fallback for engines without color-mix(): a neutral lit chip. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03)), rgba(138, 160, 216, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+}
+@supports (background: color-mix(in srgb, red 50%, transparent)) {
+  .icon-badge {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03)),
+      color-mix(in srgb, var(--badge, #8aa0d8) 22%, transparent);
+    border-color: color-mix(in srgb, var(--badge, #8aa0d8) 34%, transparent);
+  }
+}
+
+/* ---- Segmented control: a connected pill track of mutually-exclusive options.
+   The track is inset (recessed), the selected segment uses .is-selected. Used
+   for the goal switcher — far cleaner than three loose chips. */
+.segmented {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.3rem;
+  border-radius: 1.1rem;
+  background: rgba(7, 10, 22, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.42), inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+.segmented > button {
+  border-radius: 0.85rem;
+  min-height: var(--spacing-touch);
+  font-weight: 600;
+  color: var(--color-pearl-soft);
+  transition: color 0.18s var(--ease-tao), background-color 0.18s var(--ease-tao);
+}
+
+/* Segmented selected pill: a NEUTRAL frosted lift with a thin jade outline +
+   jade label — NOT the reserved solid success-jade (which would imply "this is
+   the good goal" and shame the others). Selection ≠ success. */
+.seg-active {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
+  border: 1px solid rgba(94, 201, 138, 0.55);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.22), 0 6px 16px -8px rgba(0, 0, 0, 0.7);
+}
+
+/* A faint inset divider for grouped list sections (between rows). */
+.row-divide > * + * {
+  position: relative;
+}
+.hairline {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1) 12%, rgba(255, 255, 255, 0.1) 88%, transparent);
+  border: 0;
+}
+
+/* Hero numerals: a soft pearl→jade vertical gradient for the headline metric,
+   so the single most important number on a screen has real presence. */
+.num-hero {
+  background: linear-gradient(170deg, #ffffff 0%, #cfeede 55%, #8fd9b0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
 }
 
 /* A soft, slowly-breathing aura behind the hero circle — depth + a sense of life. */
@@ -448,11 +618,13 @@ button {
   position: absolute;
   inset: 0;
   margin: auto;
-  width: 260px;
-  height: 260px;
+  width: 300px;
+  height: 300px;
   border-radius: 9999px;
-  background: radial-gradient(circle, rgba(94, 201, 138, 0.22), transparent 68%);
-  filter: blur(22px);
+  background:
+    radial-gradient(circle, rgba(94, 201, 138, 0.4), transparent 60%),
+    radial-gradient(circle, rgba(127, 179, 255, 0.16), transparent 72%);
+  filter: blur(34px);
   pointer-events: none;
   z-index: 0;
   animation: aura-pulse 6.5s ease-in-out infinite;
@@ -460,12 +632,12 @@ button {
 @keyframes aura-pulse {
   0%,
   100% {
-    opacity: 0.45;
-    transform: scale(0.94);
+    opacity: 0.6;
+    transform: scale(0.92);
   }
   50% {
-    opacity: 0.85;
-    transform: scale(1.08);
+    opacity: 1;
+    transform: scale(1.1);
   }
 }
 

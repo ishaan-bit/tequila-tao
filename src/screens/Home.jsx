@@ -102,7 +102,7 @@ export default function Home() {
     { key: "recover", emoji: "🌅", label: "Morning after", to: "/recover" },
   ].filter((x) => x.key !== action.kind);
 
-  const meaningfulWins = s.moneyKept > 0 || (s.isAbstinence ? s.soberDays > 0 : s.currentClearStreak > 0);
+  const streakVal = s.isAbstinence ? s.soberDays : s.currentClearStreak;
   const showMoodRow = s.moodToday == null && action.kind !== "checkin";
   const inComeback = s.isAbstinence ? s.soberDays === 0 && s.bestSoberRun > 0 : s.currentClearStreak === 0 && s.bestClearStreak > 0;
 
@@ -153,8 +153,8 @@ export default function Home() {
         )}
         {s.goalType === "quit" && (
           <>
-            <div className="font-display text-4xl text-pearl tnum leading-none">{s.soberDays}</div>
-            <div className="text-pearl-soft text-sm mt-1.5">
+            <div className="font-display text-6xl num-hero tnum leading-none">{s.soberDays}</div>
+            <div className="text-pearl-soft text-sm mt-2 uppercase tracking-[0.18em]">
               {s.soberDays === 1 ? "day" : "days"} alcohol-free{s.bestSoberRun > s.soberDays ? ` · best ${s.bestSoberRun}` : ""}
             </div>
           </>
@@ -238,15 +238,27 @@ export default function Home() {
       </div>
 
       {/* always-available craving net — the key secondary support */}
-      <button onClick={() => navigate("/urge")} className="w-full mt-2.5 glass rounded-2xl p-4 flex items-center gap-3 active:scale-[0.99] transition-transform">
-        <motion.span className="text-xl" aria-hidden animate={reduced ? {} : { scale: [1, 1.12, 1] }} transition={reduced ? undefined : { duration: 2.6, repeat: Infinity }}>
+      <button
+        onClick={() => navigate("/urge")}
+        className="w-full mt-2.5 rounded-2xl p-4 flex items-center gap-3.5 active:scale-[0.99] transition-transform relative overflow-hidden"
+        style={{ background: "linear-gradient(165deg, rgba(57,182,196,0.16), rgba(24,30,54,0.6))", border: "1px solid rgba(57,182,196,0.28)", boxShadow: "inset 0 1px 0 0 rgba(255,255,255,0.12), 0 12px 30px -20px rgba(0,0,0,0.9)" }}
+      >
+        <motion.span
+          className="grid place-items-center h-11 w-11 rounded-2xl shrink-0 text-xl"
+          style={{ background: "rgba(57,182,196,0.2)", border: "1px solid rgba(57,182,196,0.34)" }}
+          aria-hidden
+          animate={reduced ? {} : { scale: [1, 1.1, 1] }}
+          transition={reduced ? undefined : { duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+        >
           🌊
         </motion.span>
-        <span className="flex-1 text-left">
+        <span className="flex-1 text-left min-w-0">
           <span className="block font-semibold text-pearl">Feeling a craving?</span>
           <span className="block text-xs text-pearl-faint">Tap if you want to drink right now — we'll get through it together.</span>
         </span>
-        <span className="text-amber" aria-hidden>→</span>
+        <span className="text-teal shrink-0 grid place-items-center h-7 w-7 rounded-full" style={{ background: "rgba(57,182,196,0.18)" }} aria-hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
+        </span>
       </button>
 
       {/* quiet secondary nightly entries (de-duplicated against the primary) */}
@@ -266,15 +278,21 @@ export default function Home() {
         </div>
       )}
 
-      {/* gentle continuity — progressive: only real wins, never empty tiles */}
-      {meaningfulWins && (
-        <div className="grid grid-cols-2 gap-2.5 mt-3">
-          <MetricTile label={s.isAbstinence ? "Days alcohol-free" : "Nights in a row"} accent="jade" hint={`best ${s.isAbstinence ? s.bestSoberRun : s.bestClearStreak}`} onClick={() => navigate("/progress")}>
-            <Counter value={s.isAbstinence ? s.soberDays : s.currentClearStreak} />
-          </MetricTile>
-          <MetricTile label="Money kept" accent="jade" hint="never goes down" onClick={() => navigate("/progress")}>
-            <Counter value={s.moneyKept} prefix={currencySymbol(profile.currency)} />
-          </MetricTile>
+      {/* gentle continuity — progressive: only real, non-zero wins (a ₹0 tile in
+          the success colour would read as placeholder data). Each tile is gated
+          independently and the row collapses to one column when only one shows. */}
+      {(streakVal > 0 || s.moneyKept > 0) && (
+        <div className={`grid gap-2.5 mt-3 ${streakVal > 0 && s.moneyKept > 0 ? "grid-cols-2" : "grid-cols-1"}`}>
+          {streakVal > 0 && (
+            <MetricTile label={s.isAbstinence ? "Days alcohol-free" : "Nights in a row"} accent="jade" hint={`best ${s.isAbstinence ? s.bestSoberRun : s.bestClearStreak}`} onClick={() => navigate("/progress")}>
+              <Counter value={streakVal} />
+            </MetricTile>
+          )}
+          {s.moneyKept > 0 && (
+            <MetricTile label="Money kept" accent="jade" hint="never goes down" onClick={() => navigate("/progress")}>
+              <Counter value={s.moneyKept} prefix={currencySymbol(profile.currency)} />
+            </MetricTile>
+          )}
         </div>
       )}
 
@@ -314,9 +332,13 @@ export default function Home() {
 
 function QuickLink({ emoji, label, onClick }) {
   return (
-    <button onClick={onClick} className="raised rounded-2xl px-3 py-3 flex items-center justify-center gap-2 text-sm text-pearl active:scale-[0.98] transition min-h-touch">
-      {emoji && <span aria-hidden className="text-base leading-none">{emoji}</span>}
-      <span>{label}</span>
+    <button onClick={onClick} className="raised rounded-2xl p-3 flex items-center gap-2.5 text-sm font-medium text-pearl active:scale-[0.98] transition min-h-touch">
+      {emoji && (
+        <span aria-hidden className="grid place-items-center h-9 w-9 rounded-xl text-base shrink-0" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}>
+          {emoji}
+        </span>
+      )}
+      <span className="flex-1 text-left">{label}</span>
     </button>
   );
 }

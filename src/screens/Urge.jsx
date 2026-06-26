@@ -163,7 +163,7 @@ export default function Urge() {
     );
     footer = (
       <Button variant="glass" full onClick={advance}>
-        I feel steadier →
+        I feel steadier
       </Button>
     );
   } else if (step === STEP.ride) {
@@ -188,7 +188,7 @@ export default function Urge() {
     );
     footer = (
       <Button variant="glass" full onClick={advance}>
-        It's passing →
+        It's passing
       </Button>
     );
   } else if (step === STEP.act) {
@@ -219,7 +219,7 @@ export default function Urge() {
     );
     footer = (
       <Button variant="primary" full onClick={advance}>
-        {replacement ? "I'll do this →" : "I'll find something →"}
+        {replacement ? "I'll do this" : "I'll find something"}
       </Button>
     );
   } else {

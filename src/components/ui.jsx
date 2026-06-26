@@ -83,12 +83,144 @@ export function Chip({ selected, onClick, children, className = "", ariaLabel })
   );
 }
 
-/* ---------------- Card ---------------- */
-export function Card({ children, className = "", as: Tag = "div", ...rest }) {
+/* ---------------- Card ----------------
+   strong → the brighter, more elevated surface (for hero/primary cards).
+   accent → a hairline of brand colour along the top edge for emphasis. */
+export function Card({ children, className = "", as: Tag = "div", strong = false, accent, ...rest }) {
   return (
-    <Tag className={cn("glass rounded-3xl p-5", className)} {...rest}>
+    <Tag className={cn(strong ? "glass-strong" : "glass", "rounded-3xl p-5 relative overflow-hidden", className)} {...rest}>
+      {accent && (
+        <span
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-px"
+          style={{ background: `linear-gradient(90deg, transparent, ${TONES[accent]?.hex || accent} 28%, ${TONES[accent]?.hex || accent} 72%, transparent)`, opacity: 0.7 }}
+        />
+      )}
       {children}
     </Tag>
+  );
+}
+
+/* ---------------- Tones ----------------
+   One source of truth for accent colours, used by IconBadge / Card accents /
+   ListRow. Mirrors the @theme palette (one hue per meaning). */
+export const TONES = {
+  jade: { hex: "#5ec98a" },
+  amber: { hex: "#e0962f" },
+  ember: { hex: "#ef9a6b" },
+  moonstone: { hex: "#9ec7e8" },
+  focus: { hex: "#7fb3ff" },
+  gold: { hex: "#d8b24a" },
+  teal: { hex: "#39b6c4" },
+  sage: { hex: "#93b6c6" },
+  slate: { hex: "#8a99ad" },
+  wine: { hex: "#e0738a" },
+  danger: { hex: "#ff6b5e" },
+  pearl: { hex: "#cdd4e4" },
+};
+
+/* ---------------- IconBadge ----------------
+   A tinted, lit rounded container for a leading glyph. `tone` sets the hue. */
+export function IconBadge({ tone = "pearl", children, size, className = "" }) {
+  const hex = TONES[tone]?.hex || tone;
+  return (
+    <span className={cn("icon-badge", className)} style={{ "--badge": hex, ...(size ? { height: size, width: size } : null) }} aria-hidden>
+      {children}
+    </span>
+  );
+}
+
+/* ---------------- ListRow ----------------
+   The modern replacement for "Label →" text links: a tappable shelf with a
+   leading icon-badge, a title (+ optional sub) and a trailing chevron (or any
+   custom trailing node). Renders as a button by default. */
+export function ListRow({ icon, tone = "pearl", title, sub, onClick, trailing, danger = false, className = "", haptic = true, ...rest }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        if (haptic) hapticTap();
+        onClick?.(e);
+      }}
+      data-tone={danger ? "danger" : undefined}
+      className={cn("list-row min-h-touch", className)}
+      {...rest}
+    >
+      {icon != null && (
+        <IconBadge tone={danger ? "danger" : tone}>{icon}</IconBadge>
+      )}
+      <span className="flex-1 min-w-0">
+        <span className={cn("block font-medium truncate", danger ? "text-danger" : "text-pearl")}>{title}</span>
+        {sub && <span className="block text-xs text-pearl-faint truncate">{sub}</span>}
+      </span>
+      {trailing !== undefined ? (
+        trailing
+      ) : (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="text-pearl-faint shrink-0">
+          <path d="M9 6l6 6-6 6" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+/* ---------------- Section ----------------
+   A titled card group with an optional leading icon-badge in the header. The
+   shared shell for Settings (and anywhere a labelled group of controls lives). */
+export function Section({ title, icon, tone = "pearl", children, className = "", contentClassName = "space-y-3" }) {
+  return (
+    <section className={cn("glass rounded-3xl p-5", className)}>
+      <div className="flex items-center gap-3 mb-4">
+        {icon != null && <IconBadge tone={tone}>{icon}</IconBadge>}
+        <h2 className="font-display text-lg text-pearl">{title}</h2>
+      </div>
+      <div className={contentClassName}>{children}</div>
+    </section>
+  );
+}
+
+/* ---------------- Segmented control ----------------
+   A connected pill track of mutually-exclusive options (e.g. the goal switcher).
+   The selected segment slides with a shared layoutId for a smooth, modern feel. */
+export function Segmented({ options, value, onChange, ariaLabel, className = "" }) {
+  const reduced = useReducedMotion();
+  const cols = options.length;
+  return (
+    <div
+      role="radiogroup"
+      aria-label={ariaLabel}
+      className={cn("segmented", className)}
+      style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
+    >
+      {options.map((o) => {
+        const selected = value === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            aria-pressed={selected}
+            onClick={() => {
+              if (selected) return;
+              hapticTap();
+              onChange?.(o.value);
+            }}
+            className="relative grid place-items-center px-2 text-sm"
+          >
+            {selected && (
+              <motion.span
+                layoutId={ariaLabel ? `seg-${ariaLabel}` : undefined}
+                className="absolute inset-0 seg-active rounded-[0.85rem]"
+                transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 32 }}
+                aria-hidden
+              />
+            )}
+            <span className={cn("relative z-10", selected && "text-pearl")}>{o.label}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -147,44 +279,66 @@ export function MetricTile({ label, children, hint, accent = "pearl", onClick })
         onClick && "active:scale-[0.98] transition-transform"
       )}
     >
-      <span className="text-[11px] uppercase tracking-wider text-pearl-faint">{label}</span>
+      <span className="text-[11px] uppercase tracking-wider text-pearl-soft">{label}</span>
       <span className={cn("text-xl font-semibold tnum leading-tight", accents[accent])}>{children}</span>
       {hint && <span className="text-[11px] text-pearl-faint">{hint}</span>}
     </Comp>
   );
 }
 
-/* ---------------- Sparkline (mood 1–5, null = gap) ---------------- */
-export function Sparkline({ data = [], width = 240, height = 40, stroke = "var(--color-moonstone)", ariaLabel }) {
+/* ---------------- Sparkline (mood 1–5, null = gap) ----------------
+   A real trend: jade line with a soft area fill under it, a faint dashed mid
+   baseline, and a glowing dot on the latest point. Fills the full card width. */
+export function Sparkline({ data = [], height = 68, stroke = "var(--color-jade)", ariaLabel }) {
+  const width = 300; // viewBox units; the SVG scales to 100% width via preserveAspectRatio
   const pts = data.filter((d) => d.mood != null);
   if (pts.length < 2) {
     return (
-      <div style={{ width: "100%", maxWidth: width, minHeight: height }} className="flex items-center text-xs text-pearl-faint">
-        Not enough check-ins yet — tap a face each day to grow your trend.
+      <div style={{ width: "100%", minHeight: height }} className="relative grid place-items-center">
+        <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} preserveAspectRatio="none" className="absolute inset-0" aria-hidden>
+          <line x1="0" y1={height / 2} x2={width} y2={height / 2} stroke="rgba(244,241,232,0.14)" strokeWidth="1.5" strokeDasharray="3 5" vectorEffect="non-scaling-stroke" />
+        </svg>
+        <span className="relative text-xs text-pearl-soft text-center px-4">Tap a face each day — your trend grows here.</span>
       </div>
     );
   }
   const n = data.length;
   const xStep = width / Math.max(1, n - 1);
-  const norm = (m) => height - 4 - ((m - 1) / 4) * (height - 8);
-  let d = "";
+  const pad = 8;
+  const norm = (m) => height - pad - ((m - 1) / 4) * (height - pad * 2);
+  let line = "";
+  const coords = [];
   data.forEach((pt, i) => {
     if (pt.mood == null) return;
     const x = i * xStep;
     const y = norm(pt.mood);
-    d += (d === "" ? "M" : "L") + x.toFixed(1) + " " + y.toFixed(1) + " ";
+    coords.push([x, y]);
+    line += (line === "" ? "M" : "L") + x.toFixed(1) + " " + y.toFixed(1) + " ";
   });
+  const first = coords[0];
+  const last = coords[coords.length - 1];
+  const area = `${line} L ${last[0].toFixed(1)} ${height} L ${first[0].toFixed(1)} ${height} Z`;
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
       width="100%"
       height={height}
       preserveAspectRatio="none"
-      style={{ maxWidth: width, display: "block" }}
+      style={{ display: "block" }}
       role="img"
       aria-label={ariaLabel || "Clarity trend"}
     >
-      <path d={d} fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <defs>
+        <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--color-jade)" stopOpacity="0.32" />
+          <stop offset="100%" stopColor="var(--color-jade)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <line x1="0" y1={height / 2} x2={width} y2={height / 2} stroke="rgba(244,241,232,0.1)" strokeWidth="1" strokeDasharray="3 5" vectorEffect="non-scaling-stroke" />
+      <path d={area} fill="url(#spark-fill)" stroke="none" />
+      <path d={line} fill="none" stroke={stroke} strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      {/* latest point — drawn in absolute units so it stays a circle under non-uniform scale is impossible; use a small group with vector-effect */}
+      <circle cx={last[0]} cy={last[1]} r="3.2" fill="var(--color-jade)" stroke="var(--color-ink)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
@@ -210,7 +364,7 @@ export function MoodPicker({ value, onChange, label = "How are you feeling?" }) 
     refs.current[next]?.focus();
   };
   return (
-    <div className="flex items-center justify-between gap-1" role="radiogroup" aria-label={label}>
+    <div className="grid grid-cols-5 gap-2" role="radiogroup" aria-label={label}>
       {MOODS.map((m, i) => {
         const selected = value === m.v;
         return (
@@ -235,11 +389,12 @@ export function MoodPicker({ value, onChange, label = "How are you feeling?" }) 
               }
             }}
             className={cn(
-              "flex-1 aspect-square max-w-[58px] min-h-touch min-w-touch rounded-2xl text-2xl grid place-items-center transition-[background-color,box-shadow,transform] duration-200",
-              selected ? cn("is-selected ring-2 ring-jade", !reduced && "scale-110") : "raised"
+              "w-full min-h-touch rounded-2xl py-2 flex flex-col items-center justify-center gap-1 transition-[background-color,box-shadow,transform] duration-200",
+              selected ? cn("is-selected ring-2 ring-jade", !reduced && "scale-[1.05]") : "raised"
             )}
           >
-            <span aria-hidden>{m.face}</span>
+            <span aria-hidden className="text-[1.65rem] leading-none">{m.face}</span>
+            <span className={cn("text-[9px] font-medium leading-none tracking-wide", selected ? "text-ink/80" : "text-pearl-faint")}>{m.label}</span>
           </button>
         );
       })}
@@ -260,9 +415,9 @@ export function Stepper({ value, onChange, min = 0, max = 30, label }) {
           set(value - 1);
         }}
         disabled={value <= min}
-        className="raised h-touch w-touch rounded-2xl text-2xl leading-none grid place-items-center active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+        className="raised h-touch w-touch rounded-2xl grid place-items-center active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
       >
-        −
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden><path d="M5 12h14" /></svg>
       </button>
       <span className="tnum text-3xl font-semibold w-12 text-center text-pearl" aria-hidden>
         {value}
@@ -275,9 +430,9 @@ export function Stepper({ value, onChange, min = 0, max = 30, label }) {
           set(value + 1);
         }}
         disabled={value >= max}
-        className="raised h-touch w-touch rounded-2xl text-2xl leading-none grid place-items-center active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+        className="raised h-touch w-touch rounded-2xl grid place-items-center active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
       >
-        +
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
       </button>
     </div>
   );

@@ -9,16 +9,17 @@ import { addEvent } from "../app/store.js";
 import { currencySymbol } from "../app/format.js";
 import { success } from "../app/haptics.js";
 import Page, { BackHeader } from "../components/Page.jsx";
-import { Button, MoodPicker, AmountField } from "../components/ui.jsx";
+import { Button, MoodPicker, AmountField, IconBadge } from "../components/ui.jsx";
+import { DropletIcon, LungsIcon, ForkIcon, CoffeeIcon, ShieldCheckIcon, SplashIcon, WalkIcon, CheckIcon } from "../components/icons.jsx";
 
 const CHECKS = [
-  { id: "hydrate", title: "Hydrate", why: "300–500 ml, slow sips. Eases the headache and the jitters.", required: true },
-  { id: "breath", title: "Calming breath (1 min)", why: "In 4 · hold 2 · out 6. The longer out-breath settles the nervous system.", required: true, guide: true },
-  { id: "fuel", title: "Light fuel", why: "Carbs + protein steady blood sugar — toast & eggs, banana & yogurt.", required: true },
-  { id: "caffeine", title: "Easy on the caffeine", why: "Delay it 60–90 min if you can; the jitters settle faster.", required: true },
-  { id: "safety", title: "Safety check", why: "No chest pain, confusion, or relentless vomiting? Good.", required: true },
-  { id: "cool", title: "Cooling rinse", why: "A face splash or lukewarm shower can reset you.", required: false },
-  { id: "move", title: "Gentle movement", why: "Neck rolls, a short walk. Nothing heroic.", required: false },
+  { id: "hydrate", title: "Hydrate", why: "300–500 ml, slow sips. Eases the headache and the jitters.", required: true, icon: DropletIcon, tone: "moonstone" },
+  { id: "breath", title: "Calming breath (1 min)", why: "In 4 · hold 2 · out 6. The longer out-breath settles the nervous system.", required: true, guide: true, icon: LungsIcon, tone: "teal" },
+  { id: "fuel", title: "Light fuel", why: "Carbs + protein steady blood sugar — toast & eggs, banana & yogurt.", required: true, icon: ForkIcon, tone: "amber" },
+  { id: "caffeine", title: "Easy on the caffeine", why: "Delay it 60–90 min if you can; the jitters settle faster.", required: true, icon: CoffeeIcon, tone: "ember" },
+  { id: "safety", title: "Safety check", why: "No chest pain, confusion, or relentless vomiting? Good.", required: true, icon: ShieldCheckIcon, tone: "jade" },
+  { id: "cool", title: "Cooling rinse", why: "A face splash or lukewarm shower can reset you.", required: false, icon: SplashIcon, tone: "focus" },
+  { id: "move", title: "Gentle movement", why: "Neck rolls, a short walk. Nothing heroic.", required: false, icon: WalkIcon, tone: "sage" },
 ];
 
 function Ring({ pct }) {
@@ -109,27 +110,29 @@ export default function Recover() {
           </div>
 
           {/* checklist */}
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {CHECKS.map((c) => {
               const checked = done.has(c.id);
+              const Ico = c.icon;
               return (
                 <motion.button
                   key={c.id}
                   onClick={() => toggle(c.id)}
                   whileTap={{ scale: 0.99 }}
-                  className={`w-full text-left rounded-2xl p-4 flex items-start gap-3 transition-colors ${checked ? "bg-jade/10 ring-1 ring-jade/50" : "glass"}`}
+                  aria-pressed={checked}
+                  className={`w-full text-left rounded-2xl p-4 flex items-start gap-3.5 transition-all ${checked ? "bg-jade/10 ring-1 ring-jade/45 shadow-[0_10px_24px_-18px_rgba(94,201,138,0.7)]" : "glass"}`}
                 >
-                  <span className={`mt-0.5 h-5 w-5 rounded-full border grid place-items-center shrink-0 ${checked ? "bg-jade border-jade text-ink" : "border-white/30"}`}>
-                    {checked ? "✓" : ""}
-                  </span>
-                  <span>
-                    <span className="flex items-center gap-2">
+                  <IconBadge tone={checked ? "jade" : c.tone}>
+                    {checked ? <CheckIcon size={20} stroke={2.4} /> : <Ico size={20} />}
+                  </IconBadge>
+                  <span className="flex-1 min-w-0">
+                    <span className="flex items-center gap-2 flex-wrap">
                       <span className="text-pearl font-medium">{c.title}</span>
-                      {!c.required && <span className="text-[10px] text-pearl-faint rounded-full bg-white/10 px-2 py-0.5">optional</span>}
+                      {!c.required && <span className="text-[10px] text-pearl-soft rounded-full bg-white/10 px-2 py-0.5">optional</span>}
                     </span>
                     <span className="block text-sm text-pearl-soft mt-0.5">{c.why}</span>
                     {c.guide && checked && (
-                      <span className="block text-xs text-pearl-faint mt-1.5">Inhale 4 · hold 2 · exhale 6. Repeat gently. The slow out-breath is what calms you.</span>
+                      <span className="block text-xs text-pearl-soft mt-1.5">Inhale 4 · hold 2 · exhale 6. Repeat gently. The slow out-breath is what calms you.</span>
                     )}
                   </span>
                 </motion.button>

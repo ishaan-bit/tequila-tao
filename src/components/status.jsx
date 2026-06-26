@@ -51,10 +51,10 @@ export function StatusMark({ status = "none", size = 30, today = false, classNam
         width: size,
         height: size,
         borderRadius: Math.round(size * 0.32),
-        background: s.color,
+        background: isNone ? "rgba(255,255,255,0.045)" : s.color,
         color: s.fg,
-        border: isNone ? "1.5px dashed rgba(244,241,232,0.32)" : today ? "1.5px solid rgba(255,255,255,0.5)" : "1px solid rgba(255,255,255,0.14)",
-        boxShadow: isNone ? "none" : "inset 0 1px 0 0 rgba(255,255,255,0.25), 0 4px 10px -7px rgba(0,0,0,0.8)",
+        border: isNone ? "1.5px dashed rgba(244,241,232,0.28)" : today ? "1.5px solid rgba(255,255,255,0.5)" : "1px solid rgba(255,255,255,0.14)",
+        boxShadow: isNone ? "inset 0 1px 0 0 rgba(255,255,255,0.05)" : "inset 0 1px 0 0 rgba(255,255,255,0.25), 0 4px 10px -7px rgba(0,0,0,0.8)",
       }}
     >
       <svg width={size * 0.62} height={size * 0.62} viewBox="0 0 24 24" style={{ display: "block" }}>
@@ -82,7 +82,7 @@ export function StatusChip({ status = "none", className = "" }) {
 /** Small swatch + glyph + label, for legends. */
 export function StatusLegend({ items = ["clear", "rest", "drank", "frozen", "none"], className = "" }) {
   return (
-    <div className={`flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-[11px] text-pearl-faint ${className}`}>
+    <div className={`flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-[11px] text-pearl-soft ${className}`}>
       {items.map((k) => (
         <span key={k} className="flex items-center gap-1.5">
           <StatusMark status={k} size={16} />

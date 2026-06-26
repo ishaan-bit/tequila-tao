@@ -8,7 +8,9 @@ export default function InfoPage({ title, source }) {
       <div className="max-w-xl mx-auto">
         <BackHeader title={title} />
         <div className="px-safe pb-gutter">
-          <Markdown source={source} />
+          <div className="glass rounded-3xl p-5 sm:p-6">
+            <Markdown source={source} />
+          </div>
         </div>
       </div>
     </Page>

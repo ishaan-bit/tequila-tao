@@ -99,9 +99,7 @@ export default function MonthCalendar({
               } ${selected ? "ring-2 ring-focus bg-white/5" : ""}`}
             >
               {c.isFuture ? (
-                <span className="h-[26px] w-[26px] grid place-items-center" aria-hidden>
-                  <span className="h-1 w-1 rounded-full bg-white/15" />
-                </span>
+                <span className="h-[26px] w-[26px]" style={{ borderRadius: 8, border: "1.5px dashed rgba(244,241,232,0.13)" }} aria-hidden />
               ) : (
                 <StatusMark status={c.status} size={26} today={c.isToday} />
               )}

@@ -6,7 +6,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useProfile, useStats } from "../app/hooks.js";
 import { money } from "../app/format.js";
 import Page, { BackHeader } from "../components/Page.jsx";
-import { Button, Slider, Stepper } from "../components/ui.jsx";
+import { Button, Slider, Stepper, IconBadge, ListRow } from "../components/ui.jsx";
+import { LungsIcon, LeafIcon } from "../components/icons.jsx";
 
 export default function Crossroads() {
   const navigate = useNavigate();
@@ -41,15 +42,18 @@ export default function Crossroads() {
             <Slider id="feeling" ariaLabel="Urge to drink tonight, 1 to 10" value={feeling} min={1} max={10} onChange={setFeeling} />
             <AnimatePresence>
               {strong && (
-                <motion.button
+                <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  onClick={() => navigate("/urge")}
-                  className="mt-2 w-full text-left text-sm text-amber glass rounded-2xl p-3 min-h-touch"
+                  className="overflow-hidden"
                 >
-                  That's a strong craving. Try a 3-minute calming exercise first? →
-                </motion.button>
+                  <button onClick={() => navigate("/urge")} className="mt-3 w-full flex items-center gap-3 raised rounded-2xl p-3 text-left">
+                    <IconBadge tone="teal"><LungsIcon size={18} /></IconBadge>
+                    <span className="flex-1 text-sm text-pearl">A strong craving — take a 3-minute calming exercise first?</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="text-pearl-faint shrink-0"><path d="M9 6l6 6-6 6" /></svg>
+                  </button>
+                </motion.div>
               )}
             </AnimatePresence>
           </div>
@@ -81,11 +85,14 @@ export default function Crossroads() {
               </p>
             </button>
 
-            <div className="glass rounded-3xl p-5" style={{ borderColor: "rgba(224,150,47,0.22)" }}>
-              <button onClick={() => setExpandDrink((v) => !v)} className="w-full text-left">
-                <div className="flex items-center justify-between">
+            <div className="glass rounded-3xl p-5" style={{ borderColor: "rgba(224,150,47,0.4)" }}>
+              <button onClick={() => setExpandDrink((v) => !v)} aria-expanded={expandDrink} className="w-full text-left">
+                <div className="flex items-center justify-between gap-3">
                   <span className="font-display text-xl text-pearl">{s.isAbstinence ? "I'm having a drink" : "I'm going to drink"}</span>
-                  <span className="text-pearl-faint text-sm">{s.isAbstinence ? "log it honestly" : "no shame"}</span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    <span className="text-pearl-faint text-sm">{s.isAbstinence ? "log it honestly" : "no shame"}</span>
+                    <motion.svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="text-amber" animate={{ rotate: expandDrink ? 180 : 0 }} transition={{ duration: 0.2 }}><path d="M6 9l6 6 6-6" /></motion.svg>
+                  </span>
                 </div>
                 <p className="text-sm text-pearl-soft mt-1">
                   {s.isAbstinence
@@ -125,9 +132,13 @@ export default function Crossroads() {
             </div>
           </div>
 
-          <button onClick={() => navigate("/urge")} className="block mx-auto text-sm text-pearl-soft underline underline-offset-4 decoration-white/30 hover:text-pearl min-h-touch">
-            Not sure? Take a minute with a calming exercise →
-          </button>
+          <ListRow
+            icon={<LeafIcon />}
+            tone="teal"
+            title="Not sure? Take a minute to breathe"
+            sub="A short calming exercise"
+            onClick={() => navigate("/urge")}
+          />
         </div>
       </div>
     </Page>

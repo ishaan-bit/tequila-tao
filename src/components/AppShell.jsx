@@ -1,9 +1,12 @@
-// src/components/AppShell.jsx — main layout with a safe-area bottom tab bar.
-// Three plain tabs: Home · Progress · Settings. (The old "Center" + "Balance"
-// were near-duplicate surfaces; Balance's detail now lives inside Home.)
+// src/components/AppShell.jsx — main layout with a floating, rounded bottom tab
+// bar. Three plain tabs: Home · Progress · Settings. The active tab carries a
+// soft jade "pill" that glides between tabs (shared layoutId), which reads far
+// more modern than the old edge-to-edge slab with a static top tick.
 import { useEffect, useRef } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
 import { tap } from "../app/haptics.js";
+import { useReducedMotion } from "../app/motion.js";
 
 const TABS = [
   { to: "/home", label: "Home", icon: HomeIcon },
@@ -14,6 +17,7 @@ const TABS = [
 export default function AppShell() {
   const { pathname } = useLocation();
   const mainRef = useRef(null);
+  const reduced = useReducedMotion();
   // On a tab change, move focus to the page container so keyboard/AT users aren't
   // stranded on the bottom nav and the new screen is perceivable.
   useEffect(() => {
@@ -32,27 +36,36 @@ export default function AppShell() {
         <Outlet />
       </main>
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 nav-surface"
-        style={{ paddingBottom: "var(--safe-bottom)" }}
+        className="fixed inset-x-0 bottom-0 z-40 px-3"
+        style={{ paddingBottom: "calc(var(--safe-bottom) + var(--nav-gap))" }}
         aria-label="Primary"
       >
-        <div className="max-w-xl mx-auto grid grid-cols-3" style={{ minHeight: "var(--nav-h)" }}>
+        <div className="max-w-xl mx-auto nav-surface rounded-[1.5rem] grid grid-cols-3 gap-1 p-1.5" style={{ minHeight: "var(--nav-h)" }}>
           {TABS.map((t) => (
             <NavLink
               key={t.to}
               to={t.to}
               onClick={() => tap()}
               className={({ isActive }) =>
-                `relative flex flex-col items-center justify-center gap-1 py-2.5 min-h-touch text-[11px] font-medium transition-colors ${
+                `relative flex flex-col items-center justify-center gap-1 rounded-[1.1rem] py-1.5 min-h-touch text-[11px] font-semibold transition-colors ${
                   isActive ? "text-jade" : "text-pearl-soft hover:text-pearl"
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  {isActive && <span className="absolute top-0 h-[3px] w-10 rounded-full bg-jade shadow-[0_0_8px] shadow-jade/50" aria-hidden />}
-                  <t.icon active={isActive} />
-                  <span>{t.label}</span>
+                  {isActive && (
+                    <motion.span
+                      layoutId="navpill"
+                      className="absolute inset-0 nav-pill rounded-[1.1rem]"
+                      transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 34 }}
+                      aria-hidden
+                    />
+                  )}
+                  <span className="relative z-10 flex flex-col items-center gap-1">
+                    <t.icon active={isActive} />
+                    <span>{t.label}</span>
+                  </span>
                 </>
               )}
             </NavLink>
