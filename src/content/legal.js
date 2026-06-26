@@ -2,21 +2,32 @@
 
 export const PRIVACY_MD = `# Privacy Policy
 
-**Last updated: June 22, 2026**
+**Last updated: June 26, 2026**
 
 ## The short version
 
-This app helps you on your de-addiction journey, and it does that entirely on your own device. There are no accounts to create, no servers to sign in to, and no analytics running in the background. Everything you enter stays with you. We don't collect it, we don't see it, and we can't upload it — because there's nowhere for it to go.
+This app helps you on your de-addiction journey, and it does that entirely on your own device. There are no accounts to create, no servers to sign in to, and no analytics running in the background. Everything you enter stays with you. We don't collect it and we don't see it, and nothing is uploaded unless you choose to turn on the optional cloud backup described below. By default, there's nowhere for your data to go.
 
 ## What we collect
 
-Nothing. We don't collect any personal information. The app has no user accounts, no login, and no email sign-up. We never ask for your name, phone number, or location.
+By default, nothing. We don't collect any personal information: the app has no user accounts, no login, and no email sign-up, and we never ask for your name, phone number, or location. The one exception is if you switch on **cloud backup** or **notifications** (both off by default) — the section below spells out exactly what that stores.
 
 ## Where your data lives
 
 All the information you create in the app — your check-ins, streaks, notes, goals, settings, and progress — is stored **locally on your device**, in your browser's storage, under keys prefixed with \`tt_\`.
 
-This data never leaves your device automatically. It isn't sent to us, to a cloud, or to any third party. There is no hidden sync.
+This data never leaves your device automatically. Unless you turn on the optional cloud backup, it isn't sent to us, to a cloud, or to any third party — there is no hidden sync, ever. Sync is always something you switch on yourself.
+
+## Optional cloud backup & notifications (off by default)
+
+The app works fully on-device. If you want to keep your progress safe across phones, or receive supportive reminders, you can turn on **Backup & sync** in Settings. Only then, and only while it's on, does the app:
+
+- Sign you in **anonymously** with Firebase (Google) — a random device ID with **no name, email, or phone number** attached.
+- Store a copy of your app data (your events, goals, and settings) so you can restore it. The backup is locked to a **recovery code** shown only to you — keep it safe, because anyone who has it can read that backup. It's what lets you restore without an account.
+- Record a little non-identifying device info (platform, app version, your goal type, when you last opened the app) so backup and support work.
+- If you also turn on **notifications**, store a push token so we can send reminders or supportive messages.
+
+This data is processed by **Google Firebase** on our behalf. You can turn sync off any time (it stops uploading), and you can **delete your cloud backup** from Settings — that removes it from our servers. You can also email **kumar.ishaan93@gmail.com** to request deletion. We will never sell your data, show ads, or use it for anything beyond backup, restore, and the notifications you asked for.
 
 ## No tracking, no analytics
 
@@ -77,9 +88,12 @@ If you're already experiencing withdrawal symptoms (shaking, sweating, racing he
 
 If you're thinking about harming yourself, are in danger, or face a medical emergency, **reach out for real help now — not this app.**
 
-- **Call your local emergency number** (e.g. 911 in the US/Canada, 112 across much of Europe, 999 in the UK, 000 in Australia, 112 in India).
-- **Find a helpline near you** via [findahelpline.com](https://findahelpline.com) or the [IASP crisis-centre directory](https://www.iasp.info/resources/Crisis_Centres/).
-- **In the US**, call or text **988** (Suicide & Crisis Lifeline).
+- **Medical emergency?** Call **112** (national emergency) or **108** for an ambulance.
+- **Tele-MANAS** — India's free, 24/7 government mental-health helpline: call **14416** or **1-800-891-4416** (20+ languages).
+- **KIRAN** — free, 24/7 mental-health and substance-use support line: **1800-599-0019** (13 languages).
+- **Vandrevala Foundation** — free, 24/7 counselling: **1860-266-2345** or **1800-233-3330**.
+- **AASRA** — 24/7 suicide prevention: **+91-9820466726**.
+- Outside India, or want more options? Find a helpline near you at [findahelpline.com](https://findahelpline.com).
 - **Reach out to someone you trust** — a friend, family member, or doctor.
 
 You deserve support from a real person. Please don't wait.
@@ -142,7 +156,7 @@ There's no shame in this app, and no shame in this either. Consider talking to s
 
 **A safety word on withdrawal:** if you're a heavy daily drinker, stopping suddenly can be dangerous. Tremors, confusion, hallucinations, or seizures are medical emergencies — don't white-knuckle that alone.
 
-**If you're in crisis, contact your local emergency number now.** For ongoing support, reach out to a doctor, counselor, or substance-use helpline in your region. We'll be here in the morning. No judgment.`;
+**If you're in crisis, call 112 (emergency) or Tele-MANAS at 14416 now.** For ongoing support, reach out to a doctor, counselor, or a substance-use helpline like KIRAN (1800-599-0019). We'll be here in the morning. No judgment.`;
 
 export const GUIDE_MD = `# How It Works
 
@@ -214,4 +228,4 @@ If a streak breaks you'll see soft slate — never alarm-red, never "you failed.
 
 ## Privacy & care
 
-**No account. No servers. No tracking.** Everything lives on your device — export a backup now and then. **This app is not medical care.** Severe alcohol withdrawal can be dangerous; if you're unwell, seek professional help. Crisis resources are in Settings and on the Terms page.`;
+**No account, on-device by default.** Your data lives on your device; optional cloud backup and notifications stay off until you turn them on in Settings. **This app is not medical care.** Severe alcohol withdrawal can be dangerous; if you're unwell, seek professional help. Crisis resources are in Settings and on the Terms page.`;

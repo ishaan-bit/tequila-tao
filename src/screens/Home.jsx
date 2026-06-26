@@ -240,7 +240,7 @@ export default function Home() {
       {/* always-available craving net — the key secondary support */}
       <button
         onClick={() => navigate("/urge")}
-        className="w-full mt-2.5 rounded-2xl p-4 flex items-center gap-3.5 active:scale-[0.99] transition-transform relative overflow-hidden"
+        className="breathe w-full mt-2.5 rounded-2xl p-4 flex items-center gap-3.5 active:scale-[0.99] transition-transform relative overflow-hidden"
         style={{ background: "linear-gradient(165deg, rgba(57,182,196,0.16), rgba(24,30,54,0.6))", border: "1px solid rgba(57,182,196,0.28)", boxShadow: "inset 0 1px 0 0 rgba(255,255,255,0.12), 0 12px 30px -20px rgba(0,0,0,0.9)" }}
       >
         <motion.span

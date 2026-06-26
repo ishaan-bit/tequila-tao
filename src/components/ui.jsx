@@ -9,7 +9,14 @@ export function cn(...xs) {
 }
 
 /* ---------------- Button ----------------
-   variant: primary | warm | wine | glass (raised secondary) | ghost
+   variant (one hue per meaning, so a button reads as what it DOES):
+     primary → jade   · a win / progress (log a clear night, "I made it")
+     calm    → teal   · grounding, steadying (the craving-rescue action)
+     care    → sage   · gentle, non-celebratory care (check-in, morning-after)
+     warm    → amber  · celebration / milestone
+     wine    → wine   · destructive (clear data)
+     glass   → raised · neutral secondary
+     ghost   → outline · quiet tertiary
    size:    md (44px floor) | lg (56px comfortable target for top CTAs) */
 export const Button = forwardRef(function Button(
   {
@@ -33,6 +40,8 @@ export const Button = forwardRef(function Button(
   const variants = {
     // Vivid gradient fills with a glow halo (defined in index.css).
     primary: "btn-primary font-semibold hover:brightness-105 active:brightness-95",
+    calm: "btn-calm font-semibold hover:brightness-105 active:brightness-95",
+    care: "btn-care font-semibold hover:brightness-[1.07] active:brightness-95",
     warm: "btn-warm font-semibold hover:brightness-105 active:brightness-95",
     wine: "text-pearl bg-wine hover:brightness-110 active:brightness-95 font-semibold shadow-lg shadow-wine/40",
     // Secondary: a SOLID, clearly-elevated surface (no translucency lottery).

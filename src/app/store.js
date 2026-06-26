@@ -75,8 +75,8 @@ export const DEFAULT_SETTINGS = {
   sound: false, // OFF by default (calm, respectful)
   haptics: true,
   reducedMotionOverride: false, // force-on reduced motion
-  reminderTime: "21:00", // 'HH:MM' (Capacitor-ready, no-op on web) — a sensible evening default
-
+  reminderTime: "21:00", // 'HH:MM' — the daily check-in nudge time (installed app)
+  dailyReminder: true, // master switch for the daily on-device reminder
   drinkLimitNudge: true,
 };
 

@@ -1,0 +1,22 @@
+{
+  "name": "tequila-tao-ops-console",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Private admin ops console for the Tequila Tao project (device registry, push notifications, backup viewer).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "firebase": "^11.10.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "firebase-admin": "^13.0.0",
+    "vite": "^6.0.0"
+  }
+}

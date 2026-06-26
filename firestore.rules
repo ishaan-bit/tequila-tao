@@ -1,0 +1,36 @@
+rules_version = '2';
+
+// Tequila Tao — Firestore security rules.
+// The app is on-device by default; these collections only ever hold data for
+// users who EXPLICITLY opted into cloud backup. Identity is an anonymous auth
+// uid (no PII). The ops console reads via the Firebase Admin SDK, which bypasses
+// these rules, so there is deliberately NO "admin" allowance here to widen.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Per-install registry doc. Doc id == the anonymous auth uid, so an install
+    // can only read/write its OWN metadata. Never listable by clients.
+    match /devices/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list: if false;
+      allow create, update: if request.auth != null && request.auth.uid == uid;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // The actual backup blob, addressed by a high-entropy recovery code. The code
+    // is a bearer token: a signed-in user who KNOWS the code may read it (to
+    // restore on a new device), but the collection is never enumerable. Writes
+    // must be stamped with the writer's own uid.
+    match /backups/{code} {
+      allow get: if request.auth != null;
+      allow list: if false;
+      allow create, update: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
+
+    // Everything else is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

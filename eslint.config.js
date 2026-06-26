@@ -10,7 +10,10 @@ export default defineConfig([
   // web bundle into android/app/src/main/assets — those are generated artifacts,
   // never lint them (they were turning `npm run lint` red with hundreds of
   // false positives from minified vendor code).
-  globalIgnores(['dist', 'public/sw.js', 'android', 'coverage']),
+  // `ops-console/` is a separate Vercel sub-project with its own toolchain/lint.
+  // The FCM service worker runs in a worker context (importScripts, the firebase
+  // compat global) that this browser-module config can't resolve.
+  globalIgnores(['dist', 'public/sw.js', 'public/firebase-messaging-sw.js', 'android', 'coverage', 'ops-console']),
   {
     files: ['**/*.{js,jsx}'],
     plugins: { react },

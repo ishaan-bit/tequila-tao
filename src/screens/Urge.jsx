@@ -24,6 +24,7 @@ import Page from "../components/Page.jsx";
 import CravingStep from "../components/CravingStep.jsx";
 import YinYang from "../components/YinYang.jsx";
 import { Button, Slider } from "../components/ui.jsx";
+import CrisisHelp from "../components/CrisisHelp.jsx";
 
 const GROUNDING = [
   "Name three things you can hear right now.",
@@ -49,6 +50,7 @@ export default function Urge() {
   const [after, setAfter] = useState(3);
   const [replacement, setReplacement] = useState(null);
   const [done, setDone] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // The adaptive sequence, and where we are in it.
   const steps = useMemo(() => buildCravingSteps(before), [before]);
@@ -104,7 +106,7 @@ export default function Urge() {
   };
 
   const exit = () => navigate("/home");
-  const urgent = () => navigate("/terms");
+  const urgent = () => setHelpOpen(true);
   const drank = () => finish("drank");
   const mmss = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`;
 
@@ -134,7 +136,7 @@ export default function Urge() {
       </div>
     );
     footer = (
-      <Button variant="primary" size="lg" full onClick={advance}>
+      <Button variant="calm" size="lg" full onClick={advance}>
         Begin
       </Button>
     );
@@ -218,7 +220,7 @@ export default function Urge() {
       </div>
     );
     footer = (
-      <Button variant="primary" full onClick={advance}>
+      <Button variant="calm" full onClick={advance}>
         {replacement ? "I'll do this" : "I'll find something"}
       </Button>
     );
@@ -277,6 +279,7 @@ export default function Urge() {
           {content}
         </CravingStep>
       </div>
+      <CrisisHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </Page>
   );
 }

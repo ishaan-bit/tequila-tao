@@ -9,6 +9,7 @@ import { addEvent } from "../app/store.js";
 import { currencySymbol } from "../app/format.js";
 import { success } from "../app/haptics.js";
 import Page, { BackHeader } from "../components/Page.jsx";
+import CrisisHelp from "../components/CrisisHelp.jsx";
 import { Button, MoodPicker, AmountField, IconBadge } from "../components/ui.jsx";
 import { DropletIcon, LungsIcon, ForkIcon, CoffeeIcon, ShieldCheckIcon, SplashIcon, WalkIcon, CheckIcon } from "../components/icons.jsx";
 
@@ -54,6 +55,7 @@ export default function Recover() {
   const [note, setNote] = useState("");
   const [trigger, setTrigger] = useState("");
   const [saved, setSaved] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const toggle = (id) => {
     success();
@@ -102,8 +104,8 @@ export default function Recover() {
             <div className="text-danger font-semibold text-sm">Safety first</div>
             <p className="text-sm text-pearl-soft mt-1">
               Severe symptoms — chest pain, confusion, seizures, relentless vomiting, or withdrawal shakes — need real care now.{" "}
-              <button onClick={() => navigate("/terms")} className="underline">
-                See safety & crisis info
+              <button onClick={() => setHelpOpen(true)} className="underline font-medium text-danger">
+                Reach a helpline now
               </button>
               .
             </p>
@@ -178,12 +180,13 @@ export default function Recover() {
           </div>
 
           <div className="mt-4">
-            <Button variant="primary" full disabled={!requiredDone || saved} onClick={finish}>
+            <Button variant="care" full disabled={!requiredDone || saved} onClick={finish}>
               {saved ? "Done ✓" : requiredDone ? "Finish recovery" : "Check off the required steps first"}
             </Button>
           </div>
         </div>
       </div>
+      <CrisisHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </Page>
   );
 }

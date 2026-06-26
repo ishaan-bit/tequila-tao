@@ -12,6 +12,11 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
+          // Firebase is ONLY reached via dynamic import (cloud backup/push, which
+          // is opt-in). Give it its own chunk so it never rides along in the eager
+          // `vendor` chunk (which @capacitor/core pulls in at launch) — non-sync
+          // users must not download ~180 kB gzip of Firebase they'll never use.
+          if (id.includes("firebase")) return "firebase-vendor";
           if (id.includes("framer-motion")) return "motion-vendor";
           if (id.includes("react-router")) return "router-vendor";
           if (id.includes("react-dom") || id.includes("/react/") || id.includes("scheduler")) return "react-vendor";

@@ -105,6 +105,19 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
   });
 }
 
+// Side-effects, kept out of render:
+//  • initCloud — opt-in cloud backup/push. A no-op unless the user turned it on;
+//    importing it does NOT pull in the Firebase SDK (that's dynamic-imported only
+//    when sync actually runs), so non-sync users ship none of it.
+//  • syncReminder — the on-device daily reminder (installed app only; no-op on
+//    web). Only (re)scheduled for users who've finished onboarding, so a brand-new
+//    user isn't hit with a permission prompt before they've even set up.
+import { getState } from "./app/store.js";
+import { initCloud } from "./app/cloud.js";
+import { syncReminder } from "./app/notifications.js";
+initCloud();
+if (getState().profile?.onboarded) syncReminder(getState().settings);
+
 // Native (Capacitor) shell only: render edge-to-edge with the status bar
 // overlaying the WebView and light icons over the dark canvas — consistent
 // across every Android version, not just the OS-enforced edge-to-edge on 15+.

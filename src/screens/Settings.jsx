@@ -17,16 +17,18 @@ import {
 } from "../app/store.js";
 import { GOALS, BREAK_PRESETS, goalConfig } from "../app/selectors.js";
 import { money } from "../app/format.js";
+import { useCloud, enableSync, disableSync, enablePush, disablePush, restoreByCode, deleteCloud } from "../app/cloud.js";
+import { syncReminder, remindersSupported } from "../app/notifications.js";
+import { APP_VERSION } from "../app/version.js";
 import { Button, Slider, Stepper, Chip, Sheet, Section, Segmented, ListRow } from "../components/ui.jsx";
 import { Toast } from "../components/Feedback.jsx";
 import {
   TargetIcon, SlidersIcon, BellIcon, SparkleIcon, DatabaseIcon, HeartIcon,
   BookIcon, InfoIcon, ShieldIcon, DocIcon, DownloadIcon, UploadIcon,
-  ResetIcon, TrashIcon, ReplayIcon, InstallIcon,
+  ResetIcon, TrashIcon, ReplayIcon, InstallIcon, CloudIcon, CheckIcon,
 } from "../components/icons.jsx";
 
 const CURRENCIES = ["INR", "USD", "EUR", "GBP", "AUD", "CAD"];
-const APP_VERSION = "3.1.0";
 
 function Toggle({ checked, onChange, label, hint }) {
   return (
@@ -129,6 +131,77 @@ export default function Settings() {
     setPendingImport(null);
   };
 
+  // ---- daily reminder (on-device, everyone) ----
+  const setReminder = (patch) => {
+    const next = updateSettings(patch);
+    syncReminder(next); // (re)schedule on native; no-op on web
+  };
+
+  // ---- opt-in cloud backup & sync ----
+  const cloud = useCloud();
+  const [restoreOpen, setRestoreOpen] = useState(false);
+  const [restoreCode, setRestoreCode] = useState("");
+  const [restoring, setRestoring] = useState(false);
+  const [confirmCloudDelete, setConfirmCloudDelete] = useState(false);
+
+  const toggleSync = async (on) => {
+    if (on) {
+      try {
+        await enableSync();
+        flash("Cloud backup on — save your recovery code below.");
+      } catch {
+        flash("Couldn't turn on backup right now.");
+      }
+    } else {
+      disableSync();
+      flash("Cloud backup off. Your remote backup is kept so you can restore.");
+    }
+  };
+
+  const togglePush = async (on) => {
+    if (on) {
+      try {
+        const r = await enablePush();
+        flash(r?.native ? "Notifications on — native setup finishing." : "Notifications on.");
+      } catch (e) {
+        flash(e?.message || "Couldn't enable notifications.");
+      }
+    } else {
+      disablePush();
+      flash("Notifications off.");
+    }
+  };
+
+  const doRestore = async () => {
+    if (!restoreCode.trim()) return;
+    setRestoring(true);
+    try {
+      await restoreByCode(restoreCode, (store.events || []).length ? "merge" : "replace");
+      flash("Restored from your backup.");
+      setRestoreOpen(false);
+      setRestoreCode("");
+    } catch (e) {
+      flash(e?.message || "Couldn't restore that code.");
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  const doCloudDelete = async () => {
+    await deleteCloud();
+    setConfirmCloudDelete(false);
+    flash("Cloud backup deleted.");
+  };
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(cloud.recoveryCode || "");
+      flash("Recovery code copied.");
+    } catch {
+      flash("Copy failed — write it down instead.");
+    }
+  };
+
   const goalOptions = Object.values(GOALS).map((g) => ({ value: g.id, label: g.label }));
 
   return (
@@ -228,13 +301,16 @@ export default function Settings() {
       </Section>
 
       <Section title="Reminders" icon={<BellIcon />} tone="focus">
-        <label className="flex items-center justify-between gap-3">
-          <span className="text-sm text-pearl-soft">Daily check-in time</span>
-          <input type="time" value={settings.reminderTime} onChange={(e) => updateSettings({ reminderTime: e.target.value })} className="raised rounded-xl px-3 py-2 text-sm text-pearl [color-scheme:dark]" />
+        <Toggle checked={settings.dailyReminder !== false} onChange={(v) => setReminder({ dailyReminder: v })} label="Daily check-in reminder" hint="A gentle nudge to check in each day" />
+        <label className={`flex items-center justify-between gap-3 ${settings.dailyReminder === false ? "opacity-50" : ""}`}>
+          <span className="text-sm text-pearl-soft">Reminder time</span>
+          <input type="time" value={settings.reminderTime} disabled={settings.dailyReminder === false} onChange={(e) => setReminder({ reminderTime: e.target.value })} className="raised rounded-xl px-3 py-2 text-sm text-pearl [color-scheme:dark]" />
         </label>
         <div className="hairline" />
-        <Toggle checked={settings.drinkLimitNudge} onChange={(v) => updateSettings({ drinkLimitNudge: v })} label="Drink-limit nudge" hint="A gentle reminder on nights out (in the app build)" />
-        <p className="text-xs text-pearl-faint">Notifications activate in the installed app. On the web they're saved for later.</p>
+        <Toggle checked={settings.drinkLimitNudge} onChange={(v) => updateSettings({ drinkLimitNudge: v })} label="Drink-limit nudge" hint="A gentle reminder on nights out" />
+        <p className="text-xs text-pearl-faint">
+          {remindersSupported() ? "Reminders run on this device — no account needed." : "Reminders run in the installed app. On the web they're saved for when you install."}
+        </p>
       </Section>
 
       <Section title="Feel & motion" icon={<SparkleIcon />} tone="gold">
@@ -284,6 +360,47 @@ export default function Settings() {
         )}
       </Section>
 
+      <Section title="Backup & sync" icon={<CloudIcon />} tone="focus">
+        <p className="text-sm text-pearl-soft">
+          Off by default. Turn it on to back up your progress and restore it on a new phone — anonymously, with no name, email, or login.{" "}
+          <button onClick={() => navigate("/privacy")} className="text-focus underline underline-offset-2">What's stored</button>.
+        </p>
+        <Toggle
+          checked={cloud.sync}
+          onChange={toggleSync}
+          label="Back up to the cloud"
+          hint={cloud.sync && cloud.lastSync ? `Last backed up ${new Date(cloud.lastSync).toLocaleString()}` : "Anonymous; encrypted in transit"}
+        />
+
+        {cloud.sync && cloud.recoveryCode && (
+          <div className="rounded-2xl p-4" style={{ background: "rgba(127,179,255,0.1)", border: "1px solid rgba(127,179,255,0.3)" }}>
+            <div className="text-[11px] uppercase tracking-wider text-pearl-soft">Your recovery code</div>
+            <div className="font-mono text-lg text-pearl tracking-wider mt-1 break-all">{cloud.recoveryCode}</div>
+            <p className="text-xs text-pearl-faint mt-1.5">Save this — it's the only way to restore on another device, and anyone with it can read your backup.</p>
+            <Button variant="glass" className="mt-2.5" onClick={copyCode}><CheckIcon size={15} /> Copy code</Button>
+          </div>
+        )}
+
+        <div className="hairline" />
+        <Toggle checked={cloud.push} onChange={togglePush} label="Notifications" hint="Supportive nudges we can send you" />
+
+        <div className="hairline" />
+        <ListRow icon={<UploadIcon />} tone="moonstone" title="Restore from a recovery code" sub="Bring a backup to this device" trailing={null} onClick={() => setRestoreOpen(true)} />
+
+        {cloud.sync &&
+          (!confirmCloudDelete ? (
+            <ListRow icon={<TrashIcon />} danger title="Delete cloud backup" sub="Remove your data from our servers" trailing={null} onClick={() => setConfirmCloudDelete(true)} />
+          ) : (
+            <div className="rounded-2xl p-4" style={{ background: "rgba(122,15,43,0.18)", border: "1px solid rgba(122,15,43,0.5)" }}>
+              <p className="text-sm text-pearl">Delete your cloud backup? Your on-device data stays — only the cloud copy is removed.</p>
+              <div className="grid grid-cols-2 gap-2.5 mt-3">
+                <Button variant="glass" onClick={() => setConfirmCloudDelete(false)}>Keep it</Button>
+                <Button variant="wine" onClick={doCloudDelete}>Delete</Button>
+              </div>
+            </div>
+          ))}
+      </Section>
+
       {installEvt && (
         <Button variant="primary" full onClick={async () => { installEvt.prompt(); setInstallEvt(null); }}>
           <InstallIcon size={18} /> Install as an app
@@ -306,6 +423,25 @@ export default function Settings() {
         </div>
         <p className="text-xs text-pearl-faint text-center pt-2">Tequila Tao v{APP_VERSION} · made with care, not for sale</p>
       </Section>
+
+      <Sheet open={restoreOpen} onClose={() => setRestoreOpen(false)} title="Restore from a code">
+        <p className="text-sm text-pearl-soft">Enter the recovery code from your other device, and we'll bring that backup here.</p>
+        <input
+          value={restoreCode}
+          onChange={(e) => setRestoreCode(e.target.value)}
+          placeholder="XXXX-XXXX-XXXX-XXXX"
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
+          className="mt-3 w-full glass rounded-2xl px-4 min-h-touch text-pearl font-mono tracking-wider placeholder:text-pearl-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        />
+        <div className="grid grid-cols-1 gap-2.5 mt-4">
+          <Button variant="primary" full disabled={restoring || !restoreCode.trim()} onClick={doRestore}>
+            {restoring ? "Restoring…" : "Restore my data"}
+          </Button>
+          <Button variant="ghost" full onClick={() => setRestoreOpen(false)}>Cancel</Button>
+        </div>
+      </Sheet>
 
       <Sheet open={!!pendingImport} onClose={() => setPendingImport(null)} title="Restore backup">
         <p className="text-sm text-pearl-soft">

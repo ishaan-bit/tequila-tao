@@ -148,6 +148,16 @@ export const CheckIcon = (p) => (
     <path d="M5 12.5l4.5 4.5L19 6.5" />
   </Icon>
 );
+export const CloudIcon = (p) => (
+  <Icon {...p}>
+    <path d="M7 18h9a3.6 3.6 0 0 0 .5-7.16A5.5 5.5 0 0 0 5.9 9.6 3.7 3.7 0 0 0 7 18Z" />
+  </Icon>
+);
+export const PhoneIcon = (p) => (
+  <Icon {...p}>
+    <path d="M6.8 3.5H10l1.3 4-2.1 1.4a12 12 0 0 0 5 5l1.4-2.1 4 1.3v3.2a2 2 0 0 1-2.2 2A16 16 0 0 1 4.8 5.7 2 2 0 0 1 6.8 3.5Z" />
+  </Icon>
+);
 
 /* ---- Milestone tiers (line-icons, one optical family, shown in gold) ---- */
 export const SproutIcon = (p) => (
